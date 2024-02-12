@@ -5,15 +5,15 @@ Once Typesense completes its search, this API will translate its results into a 
 The package has the following information in it:
 ```json
 {
-    "video_id": <video_id>,
-    "title": video_title,
+    "video_id": "<video_id>",
+    "title": "video_title",
     "instances": [
-        <time_sec>
+        
     ]
 }
 ```
 For example, the search query would be "all" and the video would be this:  
-[![Me at the zoo](https://www.youtube.com/watch?v=jNQXAC9IVRw/0.jpg)](https://www.youtube.com/watch?v=jNQXAC9IVRw).  
+[![Me at the zoo](https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Me_at_the_zoo.webm/320px--Me_at_the_zoo.webm.jpg)](https://www.youtube.com/watch?v=jNQXAC9IVRw).  
 The package would be
 ```json
 {
