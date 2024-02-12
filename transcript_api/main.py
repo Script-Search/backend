@@ -14,6 +14,10 @@ def transcript_api(request: Request) -> Request:
     """
     request_json = request.get_json(silent=True)
     request_args = request.args
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
+    }
 
     if request_json and "request" in request_json:
         request = request_json["request"]
@@ -26,5 +30,4 @@ def transcript_api(request: Request) -> Request:
         "request": request
     }
 
-    return jsonify(data)
-
+    return (jsonify(data), 200, headers)
