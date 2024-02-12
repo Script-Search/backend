@@ -1,4 +1,5 @@
 import functions_framework
+from flask import jsonify
 
 @functions_framework.http
 def transcript_api(request):
@@ -19,6 +20,10 @@ def transcript_api(request):
     elif request_args and "request" in request_args:
         request = request_args["request"]
     else:
-        request = "World"
-    return str({"request": str(request)})
+        request = None
+    
+    data = {
+        "request": request
+    }
 
+    return jsonify(data)
