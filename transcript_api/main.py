@@ -1,8 +1,8 @@
 import functions_framework
-from flask import jsonify
+from flask import jsonify, Request
 
 @functions_framework.http
-def transcript_api(request):
+def transcript_api(request: Request) -> Request:
     """HTTP Cloud Function.
     Args:
         request (flask.Request): The request object.
@@ -27,3 +27,4 @@ def transcript_api(request):
     }
 
     return jsonify(data)
+
