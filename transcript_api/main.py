@@ -3,14 +3,21 @@ from flask import jsonify, Request
 
 @functions_framework.http
 def transcript_api(request: Request) -> Request:
-    """HTTP Cloud Function.
+    """HTTP Cloud Function for handling transcript requests.
+    
+    This function handles incoming HTTP requests containing transcript data.
+    
     Args:
         request (flask.Request): The request object.
-        <https://flask.palletsprojects.com/en/1.1.x/api/#incoming-request-data>
+            <https://flask.palletsprojects.com/en/1.1.x/api/#incoming-request-data>
+    
     Returns:
-        The response text, or any set of values that can be turned into a
-        Response object using `make_response`
-        <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
+        Tuple containing:
+        - The response text, or any set of values that can be turned into a
+          Response object using `make_response`
+          <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
+        - HTTP status code.
+        - Headers for the response.
     """
     request_json = request.get_json(silent=True)
     request_args = request.args

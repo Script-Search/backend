@@ -12,9 +12,10 @@ The package has the following information in it:
     ]
 }
 ```
-For example, the search query would be "all" and the video would be this:  
-[![Me at the zoo](https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Me_at_the_zoo.webm/320px--Me_at_the_zoo.webm.jpg)](https://www.youtube.com/watch?v=jNQXAC9IVRw).  
-The package would be
+
+For example, the search query would be "all" within the following video.  
+[![Me at the zoo](https://img.youtube.com/vi/jNQXAC9IVRw/0.jpg)](https://www.youtube.com/watch?v=jNQXAC9IVRw).  
+The package would be:
 ```json
 {
     "video_id": "jNQXAC9IVRw",
@@ -25,4 +26,3 @@ The package would be
     ]
 }
 ```
-
