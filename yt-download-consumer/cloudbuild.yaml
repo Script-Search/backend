@@ -1,0 +1,13 @@
+steps:
+- name: gcr.io/cloud-builders/gcloud
+  args:
+  - functions
+  - deploy
+  - yt-download-consumer
+  - --trigger-topic=YoutubeURLs
+  - --entry-point=transcript_downloader
+  - --runtime=python39
+  - --region=us-east4
+  - --gen2
+  id: "deploy-cloudfunc-yt-downloader-consumer"
+  dir: yt-download-consumer
