@@ -1,14 +1,14 @@
 steps:
-  name: gcr.io/cloud-builders/gcloud",
+- name: "gcr.io/cloud-builders/gcloud"
   args: [
-    "functions", "deploy", "yt-url-consumer",
-    "--trigger-topic=YoutubeURLs",
-    "--entry-point=transcript_downloader",
-    "--runtime=python39",
-    "--region=us-central1",
-    "--service-account=$PROJECT_ID@cloudbuild.gserviceaccount.com",
-    "--gen2"
-  ]
+      "functions", "deploy", "yt-url-consumer",
+      "--trigger-topic=YoutubeURLs",
+      "--entry-point=transcript_downloader",
+      "--runtime=python39",
+      "--region=us-central1",
+      "--service-account=$PROJECT_ID@cloudbuild.gserviceaccount.com",
+      "--gen2"
+    ]
   id: "deploy-cloudfunc-yt-url-consumer"
   dir: functions/yt-url-consumer
 options:
