@@ -4,12 +4,26 @@ from firebase_admin import credentials, firestore, initialize_app
 from typing import Dict, Any
 
 
+test_collection = None
+
+
 def get_transcript(video_id: str) -> Dict[str, Any]:
-    cred = credentials.Certificate("credentials.json")
-    initialize_app(cred)
-    db = firestore.client()
-    test = db.collection("test")
-    document = test.document(video_id).get()
+    """Get the transcript for a video.
+
+    Args:
+        video_id (str): The video ID.
+
+    Returns:
+        Dict[str, Any]: The transcript data.
+    """
+    global test_collection
+    if test_collection == None:
+        cred = credentials.Certificate("credentials.json")
+        initialize_app(cred)
+        db = firestore.client()
+        test_collection = db.collection("test")
+
+    document = test_collection.document(video_id).get()
     return document.to_dict()
 
 
@@ -46,8 +60,6 @@ def transcript_api(request: Request) -> Request:
     else:
         request = None
 
-    data = {
-        "request": request
-    }
+    data = get_transcript(request)
 
     return (jsonify(data), 200, headers)
