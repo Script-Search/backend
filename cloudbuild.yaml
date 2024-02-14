@@ -4,11 +4,6 @@ steps:
   - functions
   - deploy
   - yt-download-consumer
-  - --trigger-topic=YoutubeURLs
-  - --entry-point=transcript_downloader
-  - --runtime=python39
-  - --region=us-east4
-  - --gen2
   id: "deploy-cloudfunc-yt-url-consumer"
   dir: functions/yt-url-consumer
 options:
