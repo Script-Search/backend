@@ -11,3 +11,5 @@ steps:
   - --gen2
   id: "deploy-cloudfunc-yt-url-consumer"
   dir: functions/yt-url-consumer
+options:
+  logging: CLOUD_LOGGING_ONLY
