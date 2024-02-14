@@ -9,5 +9,7 @@ steps:
   - --runtime=python39
   - --region=us-east4
   - --gen2
-  id: "deploy-cloudfunc-yt-downloader-consumer"
-  dir: yt-download-consumer
+  id: "deploy-cloudfunc-yt-url-consumer"
+  dir: functions/yt-url-consumer
+options:
+  logging: CLOUD_LOGGING_ONLY
