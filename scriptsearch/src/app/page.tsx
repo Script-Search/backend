@@ -23,7 +23,7 @@ export default function Home() {
             .then(data => {
                 console.log(data);
                 setResultsReceived(true);
-                setResults(data.request);
+                setResults(data.transcript);
             })
     }
 
@@ -42,12 +42,12 @@ export default function Home() {
                 <p className="text-2xl before:content-['ScriptSearch'] before:text-red-500 before:font-bold before:"> - YouTube Transcript Search</p>
             </div>
 
-            <div className="">
+            {/* <div className="">
                 <input type="text" id="link" placeholder="Enter a channel/playlist link" className="border rounded border-gray-500 p-2 my-1 w-80 dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"></input>
-            </div>
+            </div> */}
 
             <div className="justify-center">
-                <input type="text" id="query" placeholder="Enter a query" className="border rounded border-gray-500 p-2 w-64 dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"></input>
+                <input type="text" id="query" placeholder="Enter a video id" className="border rounded border-gray-500 p-2 w-64 dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"></input>
                 <button id="search" onClick={backendConnect} className="border border-gray-500 rounded py-2  w-16 transition-colors ease-in-out hover:bg-red-600 hover:text-white hover:border-red-700">Submit</button>
             </div>
 
