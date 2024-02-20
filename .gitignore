@@ -1,2 +1,6 @@
 *.gpg
+*.ttml
 credentials.json
+venv
+__pycache__/
+testing
