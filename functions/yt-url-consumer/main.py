@@ -8,13 +8,15 @@ import yt_dlp
 from firebase_admin import credentials, firestore, initialize_app
 from lxml import etree
 
+delimiter = "$#$"
+
 ydl_opts = {
     "skip_download": True,
     "writesubtitles": True,
     "writeautomaticsub": True,
     "subtitleslangs": ["en"],
     "subtitlesformat": "ttml",
-    'outtmpl': {'default': '%(id)s.%(channel_id)s.%(upload_date)s.%(duration)s'}, # Change output file name
+    'outtmpl': {'default': delimiter.join(['%(id)s', '%(channel_id)s', '%(uploader)s', '%(duration)s', '%(upload_date)s', '%(title)s'])}, # Change output file name
     "quiet": True, # Don't display stuff to the console
 }
 
@@ -24,8 +26,14 @@ ydl = yt_dlp.YoutubeDL(ydl_opts)
 def is_valid_subtitle(element):
     return element.tag.endswith('p') and 'begin' in element.attrib and 'end' in element.attrib and element.text
 
+def parse_timestamp(timestamp):
+    hours, minutes, seconds = timestamp.split(":")
+    seconds = seconds.split(".")[0]
+    return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+
 def parse_ttml(ttml_file_name):
     subtitles = []
+    timestamps = []
 
     with open(ttml_file_name, "rb") as f:
         # Stream processing to not load entire XML tree at once
@@ -33,7 +41,8 @@ def parse_ttml(ttml_file_name):
             if is_valid_subtitle(element):
                 text = element.text.strip()
                 begin = element.attrib['begin']
-                subtitles.append(f"{text} [{begin}]") # TODO: convert begin to seconds
+                subtitles.append(text)
+                timestamps.append(parse_timestamp(begin)) # TODO: convert begin to seconds
 
             # Clear element to release memory, can help w/ mem usage
             # element.clear()
@@ -42,7 +51,7 @@ def parse_ttml(ttml_file_name):
             # while element.getprevious() is not None:
             #     del element.getparent()[0]
 
-    return '\n'.join(subtitles)
+    return subtitles, timestamps
 
 def initialize_firestore(): # Using lazy-loading of global variable, more efficient for serverless functions
     global test_collection
@@ -57,16 +66,24 @@ def insert_transcript(ttml_file_name):
         initialize_firestore()
 
         # TODO: Handle potential error where there isn't exactly 1 ttml file
-        video_id, channel_id, upload_date, duration, lang, transcript_format = ttml_file_name.split(".")
+        video_id, channel_id, channel_name, duration, upload_date, title = ttml_file_name.split(delimiter)
 
-        parsed_transcript = parse_ttml(ttml_file_name)
+        # Convert to the right data format (according to wiki)
+        duration = int(duration)
+        title = title.rstrip(".en.ttml")
+        upload_date = int(upload_date)
+
+        parsed_transcript, timestamps = parse_ttml(ttml_file_name)
 
         doc_ref = test_collection.document(video_id)
         doc_ref.set({
             "channel_id": channel_id,
-            "upload_date": upload_date,
-            "duration": duration,
-            "transcript": parsed_transcript
+            "channel_name": channel_name,
+            "duration": int(duration),
+            "upload_date": upload_date, # Maybe defer this to a later function
+            "title": title,
+            "transcript": parsed_transcript,
+            "timestamps": timestamps
         })
         return True
     except Exception as e:
@@ -77,7 +94,8 @@ def insert_transcript(ttml_file_name):
 @functions_framework.cloud_event
 def transcript_downloader(cloud_event):
     startTime = time.time()
-    URL = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
+    # URL = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
+    URL = cloud_event.data
 
     if "watch" not in URL: # TODO: Ensure inputted URL is a singular video
         return 200
