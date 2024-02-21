@@ -35,3 +35,4 @@ def typesense_test(request):
 
     results = client.collections['transcripts'].documents.search(search_parameters)
     return results["hits"]
+
