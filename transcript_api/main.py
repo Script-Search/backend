@@ -6,7 +6,8 @@ from typing import Dict, Any, List
 
 
 test_collection = None
-
+publisher = None
+topic_path = None
 
 def get_transcript(video_id: str) -> Dict[str, Any]:
     """Get the transcript for a video.
@@ -51,8 +52,11 @@ def send_url(url: str):
     Returns:
         None
     """
-    publisher = pubsub_v.PublisherClient()
-    topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
+    global publisher, topic_path
+    if (publisher == None):
+        cred = service_account.Credentials.from_service_account_file("credentials_pub_sub.json")
+        publisher = pubsub_v1.PublisherClient(credentials=cred)
+        topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
     data = url.encode("utf-8")
 
     future = publisher.publish(topic_path, data=data)
