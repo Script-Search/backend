@@ -3,7 +3,7 @@ name: CI and Trigger Cloud Build on Change to yt-url-consumer
 on:
   push:
     branches:
-      - dien/gf-yt-downloader
+      - main
     paths:
       - 'functions/yt-url-consumer/**'
 
@@ -19,4 +19,4 @@ jobs:
         run: |
           curl -f POST "${{ secrets.CLOUD_BUILD_WEBHOOK_URL }}" \
           -H "Content-Type: application/json" \
-          -d '{"branch": "dien/gf-yt-downloader"}'
+          -d '{"branch": "main"}'

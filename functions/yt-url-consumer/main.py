@@ -77,7 +77,11 @@ def insert_transcript(ttml_file_name):
 @functions_framework.cloud_event
 def transcript_downloader(cloud_event):
     startTime = time.time()
-    URL = base64.b64decode(cloud_event.data["message"]["data"])
+    URL = cloud_event.data["message"]["data"]
+
+    if "watch" not in URL: # TODO: Ensure inputted URL is a singular video
+        return 200
+
     ydl.download(URL)
 
     # '''
