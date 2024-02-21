@@ -1,5 +1,6 @@
 import functions_framework
 from flask import jsonify, Request
+from google.cloud import pubsub_v1
 from firebase_admin import credentials, firestore, initialize_app
 from typing import Dict, Any, List
 
@@ -50,7 +51,13 @@ def send_url(url: str):
     Returns:
         None
     """
-    pass
+    publisher = pubsub_v.PublisherClient()
+    topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
+    data = url.encode("utf-8")
+
+    future = publisher.publish(topic_path, data=data)
+    future.result()
+    return
 
 @functions_framework.http
 def transcript_api(request: Request) -> Request:
