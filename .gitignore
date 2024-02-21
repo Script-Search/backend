@@ -1,2 +1,5 @@
 *.gpg
+*.ttml
 credentials.json
+venv
+__pycache__/
