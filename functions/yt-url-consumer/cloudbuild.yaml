@@ -1,14 +1,22 @@
 steps:
-- name: "gcr.io/cloud-builders/gcloud"
-  args: [
-      "functions", "deploy", "yt-url-consumer",
-      "--trigger-topic=YoutubeURLs",
-      "--entry-point=transcript_downloader",
-      "--runtime=python39",
-      "--region=us-central1",
-      "--gen2"
-    ]
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    echo "$$CREDENTIALS_JSON" > credentials.json &&
+    gcloud functions deploy yt-url-consumer \
+      --trigger-topic=YoutubeURLs \
+      --entry-point=transcript_downloader \
+      --runtime=python39 \
+      --region=us-central1 \
+      --gen2
+  secretEnv: ['CREDENTIALS_JSON']
   id: "deploy-cloudfunc-yt-url-consumer"
   dir: functions/yt-url-consumer
 options:
   logging: CLOUD_LOGGING_ONLY
+availableSecrets:
+  secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/credentials_json/versions/latest
+    env: 'CREDENTIALS_JSON'

@@ -33,8 +33,7 @@ def parse_ttml(ttml_file_name):
             if is_valid_subtitle(element):
                 text = element.text.strip()
                 begin = element.attrib['begin']
-                end = element.attrib['end']
-                subtitles.append(f"{text} [{begin} - {end}]")
+                subtitles.append(f"{text} [{begin}]") # TODO: convert begin to seconds
 
             # Clear element to release memory, can help w/ mem usage
             # element.clear()
@@ -45,28 +44,30 @@ def parse_ttml(ttml_file_name):
 
     return '\n'.join(subtitles)
 
-def insert_transcript(ttml_file_name):
-    # global test_collection
-    # if test_collection == None:
-    #     cred = credentials.Certificate("credentials.json")
-    #     initialize_app(cred)
-    #     db = firestore.client()
-    #     test_collection = db.collection("test")
+def initialize_firestore(): # Using lazy-loading of global variable, more efficient for serverless functions
+    global test_collection
+    if test_collection == None:
+        cred = credentials.Certificate("credentials.json")
+        initialize_app(cred)
+        db = firestore.client()
+        test_collection = db.collection("test")
 
-    # Insert into the database
+def insert_transcript(ttml_file_name):
     try:
+        initialize_firestore()
+
         # TODO: Handle potential error where there isn't exactly 1 ttml file
         video_id, channel_id, upload_date, duration, lang, transcript_format = ttml_file_name.split(".")
 
         parsed_transcript = parse_ttml(ttml_file_name)
 
-        # doc_ref = test_collection.document(video_id)
-        # doc_ref.set({
-        #     "channel_id": channel_id,
-        #     "upload_date": upload_date,
-        #     "duration": duration,
-        #     "transcript": parsed_transcript
-        # })
+        doc_ref = test_collection.document(video_id)
+        doc_ref.set({
+            "channel_id": channel_id,
+            "upload_date": upload_date,
+            "duration": duration,
+            "transcript": parsed_transcript
+        })
         return True
     except Exception as e:
         print(f"Error inserting transcript data: {e}")
@@ -76,8 +77,7 @@ def insert_transcript(ttml_file_name):
 @functions_framework.cloud_event
 def transcript_downloader(cloud_event):
     startTime = time.time()
-    # URL = base64.b64decode(cloud_event.data["message"]["data"])
-    URL = cloud_event.data
+    URL = base64.b64decode(cloud_event.data["message"]["data"])
     ydl.download(URL)
 
     # '''
@@ -90,5 +90,5 @@ def transcript_downloader(cloud_event):
 
     insert_transcript(ttml_file_name)
 
-    os.remove(ttml_file_name) # Cleanup the ttml file to prepare the function for another URL; prevent memory ^^^
+    os.remove(ttml_file_name) # Cleanup the ttml file to prepare the function for another URL; prevent memory increase
     print(f"Elapsed Time: {time.time() - startTime}")
