@@ -14,7 +14,7 @@ ydl_opts = {
     "skip_download": True,
     "writesubtitles": True,
     "writeautomaticsub": True,
-    "subtitleslangs": ["en"],
+    "subtitleslangs": ["en"], # TODO: Handle other languages (en-.*)
     "subtitlesformat": "ttml",
     'outtmpl': {'default': delimiter.join(["%(id)s", "%(channel_id)s", "%(uploader)s", "%(duration)s", "%(upload_date)s", "%(title)s"])}, # Change output file name
     "quiet": True, # Don't display stuff to the console
@@ -97,7 +97,8 @@ def transcript_downloader(cloud_event):
     URL = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
 
     if "watch" not in URL: # TODO: Ensure inputted URL is a singular video
-        return 200
+        print("watch not in URL")
+        return 400
 
     ydl.download(URL)
 
@@ -108,6 +109,10 @@ def transcript_downloader(cloud_event):
     # '''
     ttml_files = glob.glob("*.ttml")
     ttml_file_name = ttml_files[0] if len(ttml_files) == 1 else None # There could be more if function called for multiple different URLs
+
+    if not ttml_file_name:
+        print("No ttml files found")
+        return 400
 
     insert_transcript(ttml_file_name)
 
