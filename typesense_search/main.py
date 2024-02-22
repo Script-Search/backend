@@ -36,10 +36,45 @@ def search_typesense(request):
   #     seems document ordering is reverse chronological based on insert time (or maybe its random lol)
   #     ...["indices"] will give list of indices of the match(es)
 
-  transcript_matches = response["hits"][0]["highlights"][0]
-
   headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
   }
-  return (transcript_matches, 200, headers)
+  result = {
+    "hits": [],
+  }
+  for doc_hits in response["hits"]:
+      # get individual document featuring match
+      doc_info = doc_hits["document"]
+      # get info from document
+      video_id = doc_info["id"]
+      channel_id = doc_info["channel_id"]
+      title = doc_info["title"]
+      channel_name = doc_info["channel_name"]
+      # more or less metadata as required ...
+      # main concern is list of all timestamps
+      all_timestamps = doc_info["timestamps"]
+
+      # iterate through all matches within document
+      all_doc_matches = doc_hits["highlights"]
+      matches = []
+      for doc_match in all_doc_matches:
+          match_indices = doc_match["indices"]
+          match_snippets = doc_match["snippets"]
+
+          # create list of "mappings" between each match and its timestamp
+          # matches = [{"snippet": match_snippets[i], "timestamp": all_timestamps[i]} for i in match_indices]
+          for i in range(len(match_indices)):
+              index = match_indices[i]
+              matches = matches + [{"snippet": match_snippets[i], "timestamp": all_timestamps[index]}]
+      
+
+      result["hits"].append({
+          "video_id": video_id,
+          "title": title,
+          "channel_id": channel_id,
+          "channel_name": channel_name,
+          "matches": matches
+      })
+
+  return (result, 200, headers)
