@@ -13,10 +13,10 @@ delimiter = "$#$"
 ydl_opts = {
     "skip_download": True,
     "writesubtitles": True,
-    "writeautomaticsub": True,
+    "writeautomaticsub": True,"
     "subtitleslangs": ["en"],
     "subtitlesformat": "ttml",
-    'outtmpl': {'default': delimiter.join(['%(id)s', '%(channel_id)s', '%(uploader)s', '%(duration)s', '%(upload_date)s', '%(title)s'])}, # Change output file name
+    'outtmpl': {'default': delimiter.join(["%(id)s", "%(channel_id)s", "%(uploader)s", "%(duration)s", "%(upload_date)s", "%(title)s"])}, # Change output file name
     "quiet": True, # Don't display stuff to the console
 }
 
