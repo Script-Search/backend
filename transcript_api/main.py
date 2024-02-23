@@ -99,3 +99,4 @@ def transcript_api(request: Request) -> Request:
     data = get_transcript(request)
 
     return (jsonify(data), 200, headers)
+
