@@ -32,16 +32,10 @@ def search_typesense(request):
 
   response = client.collections['transcripts'].documents.search(search_parameters)
 
-  # response["hits"][i]["highlights"][j] gives specific highlight for the j-th match in the i-th document
-  #     seems document ordering is reverse chronological based on insert time (or maybe its random lol)
-  #     ...["indices"] will give list of indices of the match(es)
+  # TODO: address edge case where query is at either beginning or end of list element (and thus snippet)
 
-  headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
-  }
   result = {
-    "hits": [],
+    "hits": []
   }
   for doc_hits in response["hits"]:
       # get individual document featuring match
@@ -76,5 +70,10 @@ def search_typesense(request):
           "channel_name": channel_name,
           "matches": matches
       })
+
+  headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
+  }
 
   return (result, 200, headers)
