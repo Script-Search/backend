@@ -6,6 +6,7 @@ TYPESENSE_API_KEY = os.environ.get("TYPESENSE_API_KEY")
 TYPESENSE_HOST = os.environ.get("TYPESENSE_HOST")
 
 @functions_framework.http
+
 def search_typesense(request):
   request_json = request.get_json(silent=True)
   request_args = request.args
