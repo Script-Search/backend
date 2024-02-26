@@ -120,6 +120,4 @@ def transcript_api(request: Request) -> Request:
             f"https://us-central1-scriptsearch.cloudfunctions.net/typesense-searcher?query={query}").json()
         return (data, 200, headers)
 
-    # data = get_transcript(url)
-
     return (jsonify({"status": "failure"}), 200, headers)
