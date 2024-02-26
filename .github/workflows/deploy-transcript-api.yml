@@ -1,0 +1,22 @@
+name: CI and Trigger Cloud Build on Change for transcript-api
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'transcript_api' # **Could be subject to change**
+
+jobs:
+  prepare-and-trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      # TODO: Unit tests
+      
+      - name: Trigger Cloud Build
+        run: |
+          curl -f POST "${{ secrets.CLOUD_BUILD_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d '{"branch": "main"}'
