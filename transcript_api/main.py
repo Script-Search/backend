@@ -11,7 +11,7 @@ test_collection = None
 publisher = None
 topic_path = None
 
-
+#
 def get_transcript(video_id: str) -> Dict[str, Any]:
     """Get the transcript for a video.
 
