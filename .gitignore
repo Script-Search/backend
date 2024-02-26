@@ -1,7 +1,9 @@
 *.gpg
 *.ttml
 credentials.json
+credentials*.json
 venv
+
 __pycache__/
+node_modules/
 typesense/
-test.py

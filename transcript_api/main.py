@@ -1,10 +1,15 @@
 import functions_framework
+import requests
 from flask import jsonify, Request
+from google.cloud import pubsub_v1
+from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 test_collection = None
+publisher = None
+topic_path = None
 
 
 def get_transcript(video_id: str) -> Dict[str, Any]:
@@ -22,9 +27,48 @@ def get_transcript(video_id: str) -> Dict[str, Any]:
         initialize_app(cred)
         db = firestore.client()
         test_collection = db.collection("test")
-
+    print(video_id)
     document = test_collection.document(video_id).get()
     return document.to_dict()
+
+
+def process_url(url: str) -> List[str]:
+    """
+    Takes a Universal Reference Link, determines if the url is a channel or a playlist and returns NUMBER most recent videos.
+
+    Args:
+        url (str): Universsal Reference Link
+
+    Returns:
+        List[str]: list of video urls
+    """
+    return
+
+
+def send_url(url: str):
+    """
+    Sends a video url to Pub/Sub
+
+    Args:
+        url (str): Video URL
+
+    Returns:
+        None
+    """
+    global publisher, topic_path
+    if (publisher == None):
+        cred = service_account.Credentials.from_service_account_file(
+            "credentials_pub_sub.json")
+        publisher = pubsub_v1.PublisherClient(credentials=cred)
+        topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
+    data = url.encode("utf-8")
+
+    future = publisher.publish(topic_path, data=data)
+    future.result()
+
+    print(f"Published message to {topic_path} with data {data}")
+
+    return
 
 
 @functions_framework.http
@@ -53,13 +97,29 @@ def transcript_api(request: Request) -> Request:
         'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
     }
 
-    if request_json and "request" in request_json:
-        request = request_json["request"]
-    elif request_args and "request" in request_args:
-        request = request_args["request"]
+    if request_json and "url" in request_json:
+        url = request_json["url"]
+    elif request_args and "url" in request_args:
+        url = request_args["url"]
     else:
-        request = None
+        url = None
 
-    data = get_transcript(request)
+    if url != None:
+        send_url(url)
+        return (jsonify({"status": "success"}), 200, headers)
 
-    return (jsonify(data), 200, headers)
+    if request_json and "query" in request_json:
+        query = request_json["query"]
+    elif request_args and "query" in request_args:
+        query = request_args["query"]
+    else:
+        query = None
+
+    if (query != None):
+        data = requests.get(
+            f"https://us-central1-scriptsearch.cloudfunctions.net/typesense-searcher?query={query}").json()
+        return (data, 200, headers)
+
+    # data = get_transcript(url)
+
+    return (jsonify({"status": "failure"}), 200, headers)
