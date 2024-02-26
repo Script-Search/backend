@@ -1,6 +1,8 @@
 import functions_framework
+import requests
 from flask import jsonify, Request
 from google.cloud import pubsub_v1
+from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
 from typing import Dict, Any, List
 
@@ -8,6 +10,7 @@ from typing import Dict, Any, List
 test_collection = None
 publisher = None
 topic_path = None
+
 
 def get_transcript(video_id: str) -> Dict[str, Any]:
     """Get the transcript for a video.
@@ -54,7 +57,8 @@ def send_url(url: str):
     """
     global publisher, topic_path
     if (publisher == None):
-        cred = service_account.Credentials.from_service_account_file("credentials_pub_sub.json")
+        cred = service_account.Credentials.from_service_account_file(
+            "credentials_pub_sub.json")
         publisher = pubsub_v1.PublisherClient(credentials=cred)
         topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
     data = url.encode("utf-8")
@@ -65,6 +69,7 @@ def send_url(url: str):
     print(f"Published message to {topic_path} with data {data}")
 
     return
+
 
 @functions_framework.http
 def transcript_api(request: Request) -> Request:
@@ -98,12 +103,23 @@ def transcript_api(request: Request) -> Request:
         url = request_args["url"]
     else:
         url = None
-    
+
     if url != None:
         send_url(url)
         return (jsonify({"status": "success"}), 200, headers)
 
+    if request_json and "query" in request_json:
+        query = request_json["query"]
+    elif request_args and "query" in request_args:
+        query = request_args["query"]
+    else:
+        query = None
+
+    if (query != None):
+        data = requests.get(
+            f"https://us-central1-scriptsearch.cloudfunctions.net/typesense-searcher?query={query}").json()
+        return (data, 200, headers)
+
     # data = get_transcript(url)
 
-    return (jsonify(data), 200, headers)
-
+    return (jsonify({"status": "failure"}), 200, headers)
