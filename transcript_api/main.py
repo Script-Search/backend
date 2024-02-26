@@ -24,7 +24,7 @@ def get_transcript(video_id: str) -> Dict[str, Any]:
         initialize_app(cred)
         db = firestore.client()
         test_collection = db.collection("test")
-
+    print(video_id)
     document = test_collection.document(video_id).get()
     return document.to_dict()
 
@@ -61,6 +61,9 @@ def send_url(url: str):
 
     future = publisher.publish(topic_path, data=data)
     future.result()
+
+    print(f"Published message to {topic_path} with data {data}")
+
     return
 
 @functions_framework.http
@@ -95,8 +98,12 @@ def transcript_api(request: Request) -> Request:
         url = request_args["url"]
     else:
         url = None
+    
+    if url != None:
+        send_url(url)
+        return (jsonify({"status": "success"}), 200, headers)
 
-    data = get_transcript(request)
+    # data = get_transcript(url)
 
     return (jsonify(data), 200, headers)
 
