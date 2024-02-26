@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'transcript_api' # **Could be subject to change**
+      - 'transcript_api/**' # **Could be subject to change**
 
 jobs:
   prepare-and-trigger:
