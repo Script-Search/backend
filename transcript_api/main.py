@@ -1,5 +1,6 @@
 import functions_framework
 import requests
+import yt_dlp
 from flask import jsonify, Request
 from google.cloud import pubsub_v1
 from google.oauth2 import service_account
@@ -10,6 +11,14 @@ from typing import Dict, Any, List
 test_collection = None
 publisher = None
 topic_path = None
+LIMIT = 250
+YDL_OPS = {
+        "quiet": True,
+        "extract_flat": True,
+        "playlist_items": f"1-{LIMIT}",
+        }
+
+YDL = yt_dlp.YoutubeDL(YDL_OPS)
 
 
 def get_transcript(video_id: str) -> Dict[str, Any]:
@@ -42,6 +51,12 @@ def process_url(url: str) -> List[str]:
     Returns:
         List[str]: list of video urls
     """
+    is_video = "watch?v=" in url
+    is_playlist = "playlist?" in url
+    is_short = "short" in url
+    is_feed = "feed" in url
+    is_channel = "channel" in url or "@" in url
+
     return
 
 
