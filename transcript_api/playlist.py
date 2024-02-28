@@ -11,8 +11,7 @@ YDL_OPS = {
         }
 
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
-VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu\.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$"
-VALID_PLAYLIST = r"^.*(youtu.be\/|list=)([^#\&\?]*).*"
+VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?!.*playlist)([\w\-]+)(\S+)?$"
 
 def process_url(url: str) -> List[str]:
     """
@@ -44,13 +43,13 @@ def process_url(url: str) -> List[str]:
         print("Invalid")
     return
 
-def get_playlist_videos(playlist_url):
+def get_playlist_videos(playlist_url: str) -> List[str]:
     playlist = YDL.extract_info(playlist_url, download=False)
     video_urls = [ entry["url"] for entry in playlist["entries"] ]
 
     return video_urls
 
-def get_channel_videos(channel_url):
+def get_channel_videos(channel_url: str) -> List[str]:
     channel = YDL.extract_info(channel_url, download=False)
     video_urls = [ entry["url"] for entry in channel["entries"][0]["entries"] ]
 
