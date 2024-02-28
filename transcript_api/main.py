@@ -1,5 +1,6 @@
 import functions_framework
 import requests
+import re
 import yt_dlp
 from flask import jsonify, Request
 from google.cloud import pubsub_v1
@@ -13,12 +14,13 @@ publisher = None
 topic_path = None
 LIMIT = 250
 YDL_OPS = {
-        "quiet": True,
-        "extract_flat": True,
-        "playlist_items": f"1-{LIMIT}",
-        }
+    "quiet": True,
+    "extract_flat": True,
+    "playlist_items": f"1-{LIMIT}",
+}
 
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
+VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?!.*playlist)([\w\-]+)(\S+)?$"
 
 
 def get_transcript(video_id: str) -> Dict[str, Any]:
@@ -30,6 +32,7 @@ def get_transcript(video_id: str) -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: The transcript data.
     """
+
     global test_collection
     if test_collection == None:
         cred = credentials.Certificate("credentials.json")
@@ -51,13 +54,41 @@ def process_url(url: str) -> List[str]:
     Returns:
         List[str]: list of video urls
     """
-    is_video = "watch?v=" in url
-    is_playlist = "playlist?" in url
     is_short = "short" in url
     is_feed = "feed" in url
+
+    if is_short or is_feed:
+        raise ValueError(f"This type of url is not supported")
+
+    is_video = re.search(VALID_VIDEO, url)
+    is_playlist = "list=" in url
     is_channel = "channel" in url or "@" in url
 
+    if is_video:
+        print(f"Send this video to Pub/Sub: {url}")
+    elif is_playlist:
+        for video_url in get_playlist_videos(url):
+            print(f"Send this video to Pub/Sub: {video_url}")
+    elif is_channel:
+        for video_url in get_channel_videos(url):
+            print(f"Send this video to Pub/Sub: {video_url}")
+    else:
+        raise ValueError(f"Invalid URL: {url}")
     return
+
+
+def get_playlist_videos(playlist_url: str) -> List[str]:
+    playlist = YDL.extract_info(playlist_url, download=False)
+    video_urls = [entry["url"] for entry in playlist["entries"]]
+
+    return video_urls
+
+
+def get_channel_videos(channel_url: str) -> List[str]:
+    channel = YDL.extract_info(channel_url, download=False)
+    video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
+
+    return video_urls
 
 
 def send_url(url: str):
@@ -120,8 +151,10 @@ def transcript_api(request: Request) -> Request:
         url = None
 
     if url != None:
-        send_url(url)
-        return (jsonify({"status": "success"}), 200, headers)
+        try:
+            process_url(url)
+        except ValueError as e:
+            return (jsonify({"error": str(e)}), 400, headers)
 
     if request_json and "query" in request_json:
         query = request_json["query"]
@@ -130,11 +163,9 @@ def transcript_api(request: Request) -> Request:
     else:
         query = None
 
+    data = jsonify({"status": "success"})
     if (query != None):
         data = requests.get(
             f"https://us-central1-scriptsearch.cloudfunctions.net/typesense-searcher?query={query}").json()
-        return (data, 200, headers)
 
-    # data = get_transcript(url)
-
-    return (jsonify({"status": "failure"}), 200, headers)
+    return (data, 200, headers)
