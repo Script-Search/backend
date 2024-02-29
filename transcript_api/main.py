@@ -22,7 +22,7 @@ YDL_OPS = {
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
 VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?!.*playlist)([\w\-]+)(\S+)?$"
 
-
+#
 def get_transcript(video_id: str) -> Dict[str, Any]:
     """Get the transcript for a video.
 
@@ -187,5 +187,4 @@ def transcript_api(request: Request) -> Request:
     if (query != None):
         data = requests.get(
             f"https://us-central1-scriptsearch.cloudfunctions.net/typesense-searcher?query={query}").json()
-
     return (data, 200, headers)
