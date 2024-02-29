@@ -54,6 +54,7 @@ def process_url(url: str) -> List[str]:
     Returns:
         List[str]: list of video urls
     """
+
     is_short = "short" in url
     is_feed = "feed" in url
 
@@ -78,6 +79,15 @@ def process_url(url: str) -> List[str]:
 
 
 def get_playlist_videos(playlist_url: str) -> List[str]:
+    """Get the video urls from a playlist.
+
+    Args:
+        playlist_url (str): The playlist URL.
+
+    Returns:
+        List[str]: The video URLs.
+    """
+
     playlist = YDL.extract_info(playlist_url, download=False)
     video_urls = [entry["url"] for entry in playlist["entries"]]
 
@@ -85,6 +95,15 @@ def get_playlist_videos(playlist_url: str) -> List[str]:
 
 
 def get_channel_videos(channel_url: str) -> List[str]:
+    """Get the video urls from a channel.
+
+    Args:
+        channel_url (str): The channel URL.
+
+    Returns:
+        List[str]: The video URLs.
+    """
+
     channel = YDL.extract_info(channel_url, download=False)
     video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
 
@@ -101,6 +120,7 @@ def send_url(url: str):
     Returns:
         None
     """
+
     global publisher, topic_path
     if (publisher == None):
         cred = service_account.Credentials.from_service_account_file(
