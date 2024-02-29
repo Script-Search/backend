@@ -12,6 +12,11 @@ from typing import Dict, Any, List
 test_collection = None
 publisher = None
 topic_path = None
+HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
+}
+
 LIMIT = 250
 YDL_OPS = {
     "quiet": True,
@@ -22,7 +27,7 @@ YDL_OPS = {
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
 VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?!.*playlist)([\w\-]+)(\S+)?$"
 
-#
+
 def get_transcript(video_id: str) -> Dict[str, Any]:
     """Get the transcript for a video.
 
@@ -158,10 +163,6 @@ def transcript_api(request: Request) -> Request:
 
     request_json = request.get_json(silent=True)
     request_args = request.args
-    headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
-    }
 
     if request_json and "url" in request_json:
         url = request_json["url"]
@@ -174,7 +175,7 @@ def transcript_api(request: Request) -> Request:
         try:
             process_url(url)
         except ValueError as e:
-            return (jsonify({"error": str(e)}), 400, headers)
+            return (jsonify({"error": str(e)}), 400, HEADERS)
 
     if request_json and "query" in request_json:
         query = request_json["query"]
@@ -187,4 +188,4 @@ def transcript_api(request: Request) -> Request:
     if (query != None):
         data = requests.get(
             f"https://us-central1-scriptsearch.cloudfunctions.net/typesense-searcher?query={query}").json()
-    return (data, 200, headers)
+    return (data, 200, HEADERS)
