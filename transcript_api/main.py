@@ -189,3 +189,4 @@ def transcript_api(request: Request) -> Request:
         data = requests.get(
             f"https://us-central1-scriptsearch.cloudfunctions.net/typesense-searcher?query={query}").json()
     return (data, 200, HEADERS)
+
