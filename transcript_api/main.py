@@ -1,6 +1,8 @@
 import functions_framework
+import os
 import requests
 import re
+import typesense
 import yt_dlp
 from flask import jsonify, Request
 from google.cloud import pubsub_v1
@@ -12,17 +14,44 @@ from typing import Dict, Any, List
 test_collection = None
 publisher = None
 topic_path = None
+HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
+}
+SEARCH_PARAMS = {
+    "sort_by": "upload_date:desc",
+    "q": None,
+    "query_by": "transcript",
+    "page": 1,
+    "per_page": 250,
+    "limit": 250,
+    "limit_hits": 250,
+    # "highlight_fields": "none",
+    "highlight_start_tag": "<b>",
+    "highlight_end_tag": "</b>",
+}
 LIMIT = 250
+TYPESENSE_API_KEY = os.environ.get("TYPESENSE_API_KEY")
+TYPESENSE_HOST = os.environ.get("TYPESENSE_HOST")
+TYPESENSE = typesense.Client({
+    "nodes": [{
+        "host": TYPESENSE_HOST,
+        "port": 443,
+        "protocol": "https"
+    }],
+    "api_key": TYPESENSE_API_KEY,
+    "connection_timeout_seconds": 2
+})
+
+VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?!.*playlist)([\w\-]+)(\S+)?$"
 YDL_OPS = {
     "quiet": True,
     "extract_flat": True,
     "playlist_items": f"1-{LIMIT}",
 }
-
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
-VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?!.*playlist)([\w\-]+)(\S+)?$"
 
-#
+
 def get_transcript(video_id: str) -> Dict[str, Any]:
     """Get the transcript for a video.
 
@@ -54,6 +83,7 @@ def process_url(url: str) -> List[str]:
     Returns:
         List[str]: list of video urls
     """
+
     is_short = "short" in url
     is_feed = "feed" in url
 
@@ -78,6 +108,15 @@ def process_url(url: str) -> List[str]:
 
 
 def get_playlist_videos(playlist_url: str) -> List[str]:
+    """Get the video urls from a playlist.
+
+    Args:
+        playlist_url (str): The playlist URL.
+
+    Returns:
+        List[str]: The video URLs.
+    """
+
     playlist = YDL.extract_info(playlist_url, download=False)
     video_urls = [entry["url"] for entry in playlist["entries"]]
 
@@ -85,6 +124,15 @@ def get_playlist_videos(playlist_url: str) -> List[str]:
 
 
 def get_channel_videos(channel_url: str) -> List[str]:
+    """Get the video urls from a channel.
+
+    Args:
+        channel_url (str): The channel URL.
+
+    Returns:
+        List[str]: The video URLs.
+    """
+
     channel = YDL.extract_info(channel_url, download=False)
     video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
 
@@ -101,6 +149,7 @@ def send_url(url: str):
     Returns:
         None
     """
+
     global publisher, topic_path
     if (publisher == None):
         cred = service_account.Credentials.from_service_account_file(
@@ -115,6 +164,62 @@ def send_url(url: str):
     print(f"Published message to {topic_path} with data {data}")
 
     return
+
+
+def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
+    """
+    Finds the indexes of the query in the transcript
+
+    Args:
+        transcript (List[Dict[str, Any]]): The transcript data
+        query (str): The query
+
+    Returns:
+        List[int]: The indexes of the query
+    """
+
+    indexes = []
+    for i, snippet in enumerate(transcript):
+        if snippet["matched_tokens"]:
+            indexes.append(i)
+
+    return indexes
+
+
+def search(query: str) -> Dict[str, Dict[str, str]]:
+    SEARCH_PARAMS["q"] = query
+
+    response = TYPESENSE.collections["transcripts"].documents.search(
+        SEARCH_PARAMS)
+    # TODO: address edge case where query is at either beginning or end of list element (and thus snippet)
+
+    result = {
+        "hits": []
+    }
+
+    for hit in response["hits"]:
+        # get individual document featuring match
+        document = hit["document"]
+
+        # More or less metadata as required
+        data = {
+            "video_id": document["id"],
+            "title": document["title"],
+            "channel_id": document["channel_id"],
+            "channel_name": document["channel_name"],
+            "matches": []
+        }
+
+        # iterate through all matches within document
+        for index in find_indexes(hit["highlight"]["transcript"], query):
+            data["matches"].append(
+                {"snippet": document["transcript"][index].replace(query, f"<mark>{query}</mark>"), "timestamp": document["timestamps"][index]})
+        print(f'{data["video_id"]} has {len(data["matches"])} matches.')
+
+        result["hits"].append(data)
+    print("-"*50)
+
+    return result
 
 
 @functions_framework.http
@@ -138,10 +243,6 @@ def transcript_api(request: Request) -> Request:
 
     request_json = request.get_json(silent=True)
     request_args = request.args
-    headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
-    }
 
     if request_json and "url" in request_json:
         url = request_json["url"]
@@ -154,7 +255,7 @@ def transcript_api(request: Request) -> Request:
         try:
             process_url(url)
         except ValueError as e:
-            return (jsonify({"error": str(e)}), 400, headers)
+            return (jsonify({"error": str(e)}), 400, HEADERS)
 
     if request_json and "query" in request_json:
         query = request_json["query"]
@@ -165,6 +266,6 @@ def transcript_api(request: Request) -> Request:
 
     data = jsonify({"status": "success"})
     if (query != None):
-        data = requests.get(
-            f"https://us-central1-scriptsearch.cloudfunctions.net/typesense-searcher?query={query}").json()
-    return (data, 200, headers)
+        data = search(query)
+
+    return (data, 200, HEADERS)
