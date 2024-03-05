@@ -1,6 +1,5 @@
 import functions_framework
 import os
-import requests
 import re
 import typesense
 import yt_dlp
@@ -69,9 +68,10 @@ TYPESENSE = typesense.Client({
 Typesense client.
 """
 
-VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
-VALID_PLAYLIST = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=\w+)(\&index=[0-9]*)?(\&si=\w+)?$"
-VALID_CHANNEL = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/((\@[a-z]+(\?si=\w+)?)|(channel\/[\w\-]+))$"
+VALID_VIDEO     = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
+VALID_PLAYLIST  = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=[\w\-]+)(\&index=[0-9]*)?(\&si=[\w\-]+)?$"
+VALID_CHANNEL   = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/((\@[\w\-\.]{3,30}(\?si=\w+)?)|(channel\/[\w\-]+))(\/videos)?$"
+
 YDL_OPS = {
     "quiet": True,
     "extract_flat": True,
