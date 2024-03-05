@@ -186,6 +186,21 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     return indexes
 
 
+def mark_word(sentence: str, word: str) -> str:
+    """
+    Marks the word in the sentence
+
+    Args:
+        sentence (str): The sentence
+        word (str): The word
+
+    Returns:
+        str: The marked sentence
+    """
+    pattern = re.compile(r"\b" + re.escape(word) + r"\b", re.IGNORECASE)
+    return pattern.sub(r"<mark>\g<0></mark>", sentence)
+
+
 def search(query: str) -> Dict[str, Dict[str, str]]:
     SEARCH_PARAMS["q"] = query
 
@@ -213,7 +228,7 @@ def search(query: str) -> Dict[str, Dict[str, str]]:
         # iterate through all matches within document
         for index in find_indexes(hit["highlight"]["transcript"], query):
             data["matches"].append(
-                {"snippet": document["transcript"][index].replace(query, f"<mark>{query}</mark>"), "timestamp": document["timestamps"][index]})
+                {"snippet": mark_word(document["transcript"][index], query), "timestamp": document["timestamps"][index]})
         print(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
         result["hits"].append(data)
