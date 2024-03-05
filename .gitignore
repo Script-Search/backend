@@ -3,6 +3,7 @@
 credentials.json
 credentials*.json
 venv
+.venv
 
 __pycache__/
 node_modules/
