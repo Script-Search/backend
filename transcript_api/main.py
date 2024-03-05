@@ -14,10 +14,17 @@ from typing import Dict, Any, List
 test_collection = None
 publisher = None
 topic_path = None
+
+DEBUG = False
+
 HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
 }
+"""
+API headers to return with the data.
+"""
+
 SEARCH_PARAMS = {
     "sort_by": "upload_date:desc",
     "q": None,
@@ -30,9 +37,25 @@ SEARCH_PARAMS = {
     "highlight_start_tag": "<b>",
     "highlight_end_tag": "</b>",
 }
-LIMIT = 250
+"""
+TypeSense search parameters.
+"""
+
+LIMIT = 10
+"""
+The maximum number of videos to process in a playlist or channel.
+"""
+
 TYPESENSE_API_KEY = os.environ.get("TYPESENSE_API_KEY")
+"""
+Typesense API key.
+"""
+
 TYPESENSE_HOST = os.environ.get("TYPESENSE_HOST")
+"""
+Typesense host.
+"""
+
 TYPESENSE = typesense.Client({
     "nodes": [{
         "host": TYPESENSE_HOST,
@@ -42,8 +65,13 @@ TYPESENSE = typesense.Client({
     "api_key": TYPESENSE_API_KEY,
     "connection_timeout_seconds": 2
 })
+"""
+Typesense client.
+"""
 
-VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?!.*playlist)([\w\-]+)(\S+)?$"
+VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
+VALID_PLAYLIST = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=\w+)(\&index=[0-9]*)?(\&si=\w+)?$"
+VALID_CHANNEL = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/((\@[a-z]+(\?si=\w+)?)|(channel\/[\w\-]+))$"
 YDL_OPS = {
     "quiet": True,
     "extract_flat": True,
@@ -68,7 +96,10 @@ def get_transcript(video_id: str) -> Dict[str, Any]:
         initialize_app(cred)
         db = firestore.client()
         test_collection = db.collection("test")
-    print(video_id)
+
+    if DEBUG:
+        print(video_id)
+
     document = test_collection.document(video_id).get()
     return document.to_dict()
 
@@ -91,17 +122,23 @@ def process_url(url: str) -> List[str]:
         raise ValueError(f"This type of url is not supported")
 
     is_video = re.search(VALID_VIDEO, url)
-    is_playlist = "list=" in url
-    is_channel = "channel" in url or "@" in url
+    is_playlist = re.search(VALID_PLAYLIST, url)
+    is_channel = re.search(VALID_CHANNEL, url)
 
     if is_video:
-        print(f"Send this video to Pub/Sub: {url}")
+        send_url(url)
+        if DEBUG:
+            print(f"Send this video to Pub/Sub: {url}")
     elif is_playlist:
         for video_url in get_playlist_videos(url):
-            print(f"Send this video to Pub/Sub: {video_url}")
+            send_url(video_url)
+            if DEBUG:
+                print(f"Send this video to Pub/Sub: {video_url}")
     elif is_channel:
         for video_url in get_channel_videos(url):
-            print(f"Send this video to Pub/Sub: {video_url}")
+            send_url(video_url)
+            if DEBUG:
+                print(f"Send this video to Pub/Sub: {video_url}")
     else:
         raise ValueError(f"Invalid URL: {url}")
     return
@@ -139,7 +176,7 @@ def get_channel_videos(channel_url: str) -> List[str]:
     return video_urls
 
 
-def send_url(url: str):
+def send_url(url: str) -> None:
     """
     Sends a video url to Pub/Sub
 
@@ -161,12 +198,13 @@ def send_url(url: str):
     future = publisher.publish(topic_path, data=data)
     future.result()
 
-    print(f"Published message to {topic_path} with data {data}")
+    if DEBUG:
+        print(f"Published message to {topic_path} with data {data}")
 
     return
 
 
-def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
+def find_indexes(transcript: List[Dict[str, Any]]) -> List[int]:
     """
     Finds the indexes of the query in the transcript
 
@@ -188,7 +226,8 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
 def mark_word(sentence: str, word: str) -> str:
     """
-    Marks the word in the sentence
+    Takes every instance of word within a sentence and wraps it in <mark> tags.
+    This algorithm will also ignore cases.
 
     Args:
         sentence (str): The sentence
@@ -197,6 +236,7 @@ def mark_word(sentence: str, word: str) -> str:
     Returns:
         str: The marked sentence
     """
+
     pattern = re.compile(r"\b" + re.escape(word) + r"\b", re.IGNORECASE)
     return pattern.sub(r"<mark>\g<0></mark>", sentence)
 
@@ -208,9 +248,7 @@ def search(query: str) -> Dict[str, Dict[str, str]]:
         SEARCH_PARAMS)
     # TODO: address edge case where query is at either beginning or end of list element (and thus snippet)
 
-    result = {
-        "hits": []
-    }
+    result = {"hits": []}
 
     for hit in response["hits"]:
         # get individual document featuring match
@@ -226,13 +264,16 @@ def search(query: str) -> Dict[str, Dict[str, str]]:
         }
 
         # iterate through all matches within document
-        for index in find_indexes(hit["highlight"]["transcript"], query):
+        for index in find_indexes(hit["highlight"]["transcript"]):
             data["matches"].append(
                 {"snippet": mark_word(document["transcript"][index], query), "timestamp": document["timestamps"][index]})
-        print(f'{data["video_id"]} has {len(data["matches"])} matches.')
+
+        if DEBUG:
+            print(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
         result["hits"].append(data)
-    print("-"*50)
+    if DEBUG:
+        print('-'*100)
 
     return result
 
@@ -259,12 +300,11 @@ def transcript_api(request: Request) -> Request:
     request_json = request.get_json(silent=True)
     request_args = request.args
 
+    url = None
     if request_json and "url" in request_json:
         url = request_json["url"]
     elif request_args and "url" in request_args:
         url = request_args["url"]
-    else:
-        url = None
 
     if url != None:
         try:
@@ -272,15 +312,14 @@ def transcript_api(request: Request) -> Request:
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, HEADERS)
 
+    query = None
     if request_json and "query" in request_json:
         query = request_json["query"]
     elif request_args and "query" in request_args:
         query = request_args["query"]
-    else:
-        query = None
 
-    data = jsonify({"status": "success"})
     if (query != None):
         data = search(query)
+        return (data, 200, HEADERS)
 
-    return (data, 200, HEADERS)
+    return (jsonify({"status": "success", "query": False}), 200, HEADERS)
