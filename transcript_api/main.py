@@ -21,6 +21,9 @@ HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
 }
+"""
+API headers to return with the data.
+"""
 
 SEARCH_PARAMS = {
     "sort_by": "upload_date:desc",
@@ -34,10 +37,25 @@ SEARCH_PARAMS = {
     "highlight_start_tag": "<b>",
     "highlight_end_tag": "</b>",
 }
+"""
+TypeSense search parameters.
+"""
 
-LIMIT = 250
+LIMIT = 10
+"""
+The maximum number of videos to process in a playlist or channel.
+"""
+
 TYPESENSE_API_KEY = os.environ.get("TYPESENSE_API_KEY")
+"""
+Typesense API key.
+"""
+
 TYPESENSE_HOST = os.environ.get("TYPESENSE_HOST")
+"""
+Typesense host.
+"""
+
 TYPESENSE = typesense.Client({
     "nodes": [{
         "host": TYPESENSE_HOST,
@@ -47,6 +65,9 @@ TYPESENSE = typesense.Client({
     "api_key": TYPESENSE_API_KEY,
     "connection_timeout_seconds": 2
 })
+"""
+Typesense client.
+"""
 
 VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
 VALID_PLAYLIST = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=\w+)(\&index=[0-9]*)?(\&si=\w+)?$"
@@ -105,17 +126,17 @@ def process_url(url: str) -> List[str]:
     is_channel = re.search(VALID_CHANNEL, url)
 
     if is_video:
-        # send_url(url)
+        send_url(url)
         if DEBUG:
             print(f"Send this video to Pub/Sub: {url}")
     elif is_playlist:
         for video_url in get_playlist_videos(url):
-            # send_url(video_url)
+            send_url(video_url)
             if DEBUG:
                 print(f"Send this video to Pub/Sub: {video_url}")
     elif is_channel:
         for video_url in get_channel_videos(url):
-            # send_url(video_url)
+            send_url(video_url)
             if DEBUG:
                 print(f"Send this video to Pub/Sub: {video_url}")
     else:
@@ -155,7 +176,7 @@ def get_channel_videos(channel_url: str) -> List[str]:
     return video_urls
 
 
-def send_url(url: str):
+def send_url(url: str) -> None:
     """
     Sends a video url to Pub/Sub
 
@@ -205,7 +226,8 @@ def find_indexes(transcript: List[Dict[str, Any]]) -> List[int]:
 
 def mark_word(sentence: str, word: str) -> str:
     """
-    Marks the word in the sentence
+    Takes every instance of word within a sentence and wraps it in <mark> tags.
+    This algorithm will also ignore cases.
 
     Args:
         sentence (str): The sentence
@@ -250,6 +272,8 @@ def search(query: str) -> Dict[str, Dict[str, str]]:
             print(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
         result["hits"].append(data)
+    if DEBUG:
+        print('-'*100)
 
     return result
 
