@@ -80,6 +80,21 @@ YDL_OPS = {
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
 
 
+def debug(message: str) -> None:
+    """Print a debug message.
+
+    Args:
+        message (str): The message to print.
+
+    Returns:
+        None
+    """
+
+    if DEBUG:
+        print(message)
+    return
+
+
 def get_transcript(video_id: str) -> Dict[str, Any]:
     """Get the transcript for a video.
 
@@ -96,9 +111,6 @@ def get_transcript(video_id: str) -> Dict[str, Any]:
         initialize_app(cred)
         db = firestore.client()
         test_collection = db.collection("test")
-
-    if DEBUG:
-        print(video_id)
 
     document = test_collection.document(video_id).get()
     return document.to_dict()
@@ -127,18 +139,20 @@ def process_url(url: str) -> List[str]:
 
     if is_video:
         send_url(url)
-        if DEBUG:
-            print(f"Send this video to Pub/Sub: {url}")
+        debug(f"Send this video to Pub/Sub: {url}")
     elif is_playlist:
         for video_url in get_playlist_videos(url):
             send_url(video_url)
-            if DEBUG:
-                print(f"Send this video to Pub/Sub: {video_url}")
+            debug(f"Send this video to Pub/Sub: {video_url}")
+        debug("-" * 100)
     elif is_channel:
+        if url.endswith("/videos"):
+            url = url[:-7]
+
         for video_url in get_channel_videos(url):
             send_url(video_url)
-            if DEBUG:
-                print(f"Send this video to Pub/Sub: {video_url}")
+            debug(f"Send this video to Pub/Sub: {video_url}")
+        debug("-" * 100)
     else:
         raise ValueError(f"Invalid URL: {url}")
     return
@@ -198,8 +212,7 @@ def send_url(url: str) -> None:
     future = publisher.publish(topic_path, data=data)
     future.result()
 
-    if DEBUG:
-        print(f"Published message to {topic_path} with data {data}")
+    debug(f"Published message to {topic_path} with data {data}")
 
     return
 
@@ -268,13 +281,10 @@ def search(query: str) -> Dict[str, Dict[str, str]]:
             data["matches"].append(
                 {"snippet": mark_word(document["transcript"][index], query), "timestamp": document["timestamps"][index]})
 
-        if DEBUG:
-            print(f'{data["video_id"]} has {len(data["matches"])} matches.')
+        debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
         result["hits"].append(data)
-    if DEBUG:
-        print('-'*100)
-
+    debug("-" * 100)
     return result
 
 
