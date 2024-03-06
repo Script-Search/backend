@@ -250,7 +250,7 @@ def mark_word(sentence: str, word: str) -> str:
         str: The marked sentence
     """
 
-    pattern = re.compile(r"\b" + re.escape(word) + r"\b", re.IGNORECASE)
+    pattern = re.compile(re.escape(word), re.IGNORECASE)
     return pattern.sub(r"<mark>\g<0></mark>", sentence)
 
 
