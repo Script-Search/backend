@@ -14,7 +14,7 @@ test_collection = None
 publisher = None
 topic_path = None
 
-DEBUG = False
+DEBUG = True
 
 HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -25,16 +25,19 @@ API headers to return with the data.
 """
 
 SEARCH_PARAMS = {
-    "sort_by": "upload_date:desc",
-    "q": None,
-    "query_by": "transcript",
+    "drop_tokens_threshold": 0,
+    "typo_tokens_threshold": 0,
     "page": 1,
     "per_page": 250,
+    "prefix": False,
+    "q": None,
+    "query_by": "transcript",
+    "sort_by": "upload_date:desc",
     "limit": 250,
     "limit_hits": 250,
     # "highlight_fields": "none",
-    "highlight_start_tag": "<b>",
-    "highlight_end_tag": "</b>",
+    "highlight_start_tag": "",
+    "highlight_end_tag": "",
 }
 """
 TypeSense search parameters.
@@ -217,7 +220,7 @@ def send_url(url: str) -> None:
     return
 
 
-def find_indexes(transcript: List[Dict[str, Any]]) -> List[int]:
+def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     """
     Finds the indexes of the query in the transcript
 
@@ -228,13 +231,55 @@ def find_indexes(transcript: List[Dict[str, Any]]) -> List[int]:
     Returns:
         List[int]: The indexes of the query
     """
-
+    
     indexes = []
     for i, snippet in enumerate(transcript):
-        if snippet["matched_tokens"]:
+        if query in snippet["matched_tokens"]:
+            debug(f"Snippet: {snippet}")
+
             indexes.append(i)
 
     return indexes
+
+
+def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
+    """
+    Finds the indexes of the query in the transcript
+
+    Args:
+        transcript (List[Dict[str, Any]]): The transcript data
+        words (List[str]): The query words
+
+    Returns:
+        List[int]: The indexes of the query
+    """
+    
+    indexes = []
+    for i, snippet in enumerate(transcript):
+        if all(word in snippet["matched_tokens"] for word in words):
+            debug(f"Snippet: {snippet}")
+
+            indexes.append(i)
+
+    return indexes
+
+
+def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
+    """
+    Finds the indexes of the query in the transcript
+
+    Args:
+        transcript (List[Dict[str, Any]]): The transcript data
+        query (str): The query
+
+    Returns:
+        List[int]: The indexes of the query
+    """
+    
+    debug(f"Finding indexes of {query} in transcript")
+    words = query.split()
+
+    return single_word(transcript, query) if len(words) > 1 else multi_word(transcript, words)
 
 
 def mark_word(sentence: str, word: str) -> str:
@@ -255,8 +300,8 @@ def mark_word(sentence: str, word: str) -> str:
 
 
 def search(query: str) -> Dict[str, Dict[str, str]]:
-    SEARCH_PARAMS["q"] = query
-
+    SEARCH_PARAMS["q"] = f"\"{query}\""
+    
     response = TYPESENSE.collections["transcripts"].documents.search(
         SEARCH_PARAMS)
     # TODO: address edge case where query is at either beginning or end of list element (and thus snippet)
@@ -277,11 +322,11 @@ def search(query: str) -> Dict[str, Dict[str, str]]:
         }
 
         # iterate through all matches within document
-        for index in find_indexes(hit["highlight"]["transcript"]):
+        for index in find_indexes(hit["highlight"]["transcript"], SEARCH_PARAMS["q"][1:-1]):
             data["matches"].append(
-                {"snippet": mark_word(document["transcript"][index], query), "timestamp": document["timestamps"][index]})
+                    {"snippet": mark_word(document["transcript"][index], SEARCH_PARAMS["q"][1:-1]), "timestamp": document["timestamps"][index]})
 
-        debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
+        debug(f"{data["video_id"]} has {len(data["matches"])} matches.")
 
         result["hits"].append(data)
     debug("-" * 100)
