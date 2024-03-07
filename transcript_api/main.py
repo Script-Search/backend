@@ -4,7 +4,7 @@ import re
 import typesense
 import yt_dlp
 from flask import jsonify, Request
-from google.cloud import pubsub_v1
+from google.cloud import pubsub_v1, logging
 from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
 from typing import Dict, Any, List
@@ -13,6 +13,7 @@ from typing import Dict, Any, List
 test_collection = None
 publisher = None
 topic_path = None
+logger = None
 
 DEBUG = True
 
@@ -35,7 +36,6 @@ SEARCH_PARAMS = {
     "sort_by": "upload_date:desc",
     "limit": 250,
     "limit_hits": 250,
-    # "highlight_fields": "none",
     "highlight_start_tag": "",
     "highlight_end_tag": "",
 }
@@ -71,9 +71,9 @@ TYPESENSE = typesense.Client({
 Typesense client.
 """
 
-VALID_VIDEO     = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
-VALID_PLAYLIST  = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=[\w\-]+)(\&index=[0-9]*)?(\&si=[\w\-]+)?$"
-VALID_CHANNEL   = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/((\@[\w\-\.]{3,30}(\?si=\w+)?)|(channel\/[\w\-]+))(\/videos)?$"
+VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
+VALID_PLAYLIST = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=[\w\-]+)(\&index=[0-9]*)?(\&si=[\w\-]+)?$"
+VALID_CHANNEL = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/((\@[\w\-\.]{3,30}(\?si=\w+)?)|(channel\/[\w\-]+))(\/videos)?$"
 
 YDL_OPS = {
     "quiet": True,
@@ -93,7 +93,16 @@ def debug(message: str) -> None:
         None
     """
 
+    global logger
+
+    if not logger:
+        cred = service_account.Credentials.from_service_account_file(
+            "credentials_pub_sub.json")
+        client = logging.Client(credentials=cred)
+        logger = client.logger("scriptsearch")
+
     if DEBUG:
+        logger.log_text(message, severity="DEBUG")
         print(message)
     return
 
@@ -104,12 +113,13 @@ def get_transcript(video_id: str) -> Dict[str, Any]:
     Args:
         video_id (str): The video ID.
 
+
     Returns:
         Dict[str, Any]: The transcript data.
     """
 
     global test_collection
-    if test_collection == None:
+    if not test_collection:
         cred = credentials.Certificate("credentials.json")
         initialize_app(cred)
         db = firestore.client()
@@ -147,7 +157,7 @@ def process_url(url: str) -> List[str]:
         for video_url in get_playlist_videos(url):
             send_url(video_url)
             debug(f"Send this video to Pub/Sub: {video_url}")
-        debug("-" * 100)
+        debug("=" * 100)
     elif is_channel:
         if url.endswith("/videos"):
             url = url[:-7]
@@ -155,7 +165,7 @@ def process_url(url: str) -> List[str]:
         for video_url in get_channel_videos(url):
             send_url(video_url)
             debug(f"Send this video to Pub/Sub: {video_url}")
-        debug("-" * 100)
+        debug("=" * 100)
     else:
         raise ValueError(f"Invalid URL: {url}")
     return
@@ -205,7 +215,7 @@ def send_url(url: str) -> None:
     """
 
     global publisher, topic_path
-    if (publisher == None):
+    if not publisher:
         cred = service_account.Credentials.from_service_account_file(
             "credentials_pub_sub.json")
         publisher = pubsub_v1.PublisherClient(credentials=cred)
@@ -254,7 +264,7 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
     Returns:
         List[int]: The indexes of the query
     """
-    
+
     debug("Multi word search")
     indexes = []
     for i, snippet in enumerate(transcript):
@@ -278,7 +288,7 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     Returns:
         List[int]: The indexes of the query
     """
-    
+
     debug(f"Finding indexes of {query} in transcript")
     words = query.split()
 
@@ -302,12 +312,11 @@ def mark_word(sentence: str, word: str) -> str:
     return pattern.sub(r"<mark>\g<0></mark>", sentence)
 
 
-def search(query: str) -> Dict[str, Dict[str, str]]:
+def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
     SEARCH_PARAMS["q"] = f"\"{query}\""
-    
+
     response = TYPESENSE.collections["transcripts"].documents.search(
         SEARCH_PARAMS)
-    # TODO: address edge case where query is at either beginning or end of list element (and thus snippet)
 
     result = {"hits": []}
 
@@ -327,7 +336,7 @@ def search(query: str) -> Dict[str, Dict[str, str]]:
         # iterate through all matches within document
         for index in find_indexes(hit["highlight"]["transcript"], SEARCH_PARAMS["q"][1:-1]):
             data["matches"].append(
-                    {"snippet": mark_word(document["transcript"][index], SEARCH_PARAMS["q"][1:-1]), "timestamp": document["timestamps"][index]})
+                {"snippet": mark_word(document["transcript"][index], SEARCH_PARAMS["q"][1:-1]), "timestamp": document["timestamps"][index]})
 
         debug(f"{data["video_id"]} has {len(data["matches"])} matches.")
         debug("-" * 50)
