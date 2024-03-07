@@ -231,7 +231,8 @@ def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     Returns:
         List[int]: The indexes of the query
     """
-    
+
+    debug("Single word search")
     indexes = []
     for i, snippet in enumerate(transcript):
         if query in snippet["matched_tokens"]:
@@ -254,12 +255,14 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
         List[int]: The indexes of the query
     """
     
+    debug("Multi word search")
     indexes = []
     for i, snippet in enumerate(transcript):
-        if all(word in snippet["matched_tokens"] for word in words):
+        if words[0] in snippet["matched_tokens"]:
             debug(f"Snippet: {snippet}")
-
-            indexes.append(i)
+            debug(f"Next Snippet: {transcript[i + 1]}")
+            if all(word in snippet["matched_tokens"] or word in transcript[i + 1]["matched_tokens"] for word in words[1:]):
+                indexes.append(i)
 
     return indexes
 
@@ -279,7 +282,7 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     debug(f"Finding indexes of {query} in transcript")
     words = query.split()
 
-    return single_word(transcript, query) if len(words) > 1 else multi_word(transcript, words)
+    return single_word(transcript, query) if len(words) == 1 else multi_word(transcript, words)
 
 
 def mark_word(sentence: str, word: str) -> str:
@@ -327,9 +330,10 @@ def search(query: str) -> Dict[str, Dict[str, str]]:
                     {"snippet": mark_word(document["transcript"][index], SEARCH_PARAMS["q"][1:-1]), "timestamp": document["timestamps"][index]})
 
         debug(f"{data["video_id"]} has {len(data["matches"])} matches.")
+        debug("-" * 50)
 
         result["hits"].append(data)
-    debug("-" * 100)
+    debug("=" * 100)
     return result
 
 
