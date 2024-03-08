@@ -140,12 +140,6 @@ def process_url(url: str) -> List[str]:
         List[str]: list of video urls
     """
 
-    is_short = "short" in url
-    is_feed = "feed" in url
-
-    if is_short or is_feed:
-        raise ValueError(f"This type of url is not supported")
-
     is_video = re.search(VALID_VIDEO, url)
     is_playlist = re.search(VALID_PLAYLIST, url)
     is_channel = re.search(VALID_CHANNEL, url)
@@ -249,7 +243,7 @@ def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
             debug(f"Snippet: {snippet}")
 
             indexes.append(i)
-
+    debug("-" * 50)
     return indexes
 
 
@@ -273,7 +267,7 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
             debug(f"Next Snippet: {transcript[i + 1]}")
             if all(word in snippet["matched_tokens"] or word in transcript[i + 1]["matched_tokens"] for word in words[1:]):
                 indexes.append(i)
-
+    debug("-" * 50)
     return indexes
 
 
