@@ -332,7 +332,7 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
             data["matches"].append(
                 {"snippet": mark_word(document["transcript"][index], SEARCH_PARAMS["q"][1:-1]), "timestamp": document["timestamps"][index]})
 
-        debug(f"{data["video_id"]} has {len(data["matches"])} matches.")
+        debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
         debug("-" * 50)
 
         result["hits"].append(data)
