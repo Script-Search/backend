@@ -15,7 +15,7 @@ publisher = None
 topic_path = None
 logger = None
 
-DEBUG = True
+DEBUG = False
 
 HEADERS = {
     'Access-Control-Allow-Origin': '*',
