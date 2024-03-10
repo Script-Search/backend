@@ -120,7 +120,7 @@ def get_transcript(video_id: str) -> Dict[str, Any]:
 
     global test_collection
     if not test_collection:
-        cred = credentials.Certificate("credentials.json")
+        cred = credentials.Certificate("credentials_firebase.json")
         initialize_app(cred)
         db = firestore.client()
         test_collection = db.collection("test")
@@ -236,7 +236,6 @@ def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
         List[int]: The indexes of the query
     """
 
-    debug("Single word search")
     indexes = []
     for i, snippet in enumerate(transcript):
         if query in snippet["matched_tokens"]:
@@ -259,7 +258,6 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
         List[int]: The indexes of the query
     """
 
-    debug("Multi word search")
     indexes = []
     for i, snippet in enumerate(transcript):
         if words[0] in snippet["matched_tokens"]:
