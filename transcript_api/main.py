@@ -80,7 +80,15 @@ YDL_OPS = {
     "extract_flat": True,
     "playlist_items": f"1-{LIMIT}",
 }
+"""
+Youtube-dl options.
+"""
+
+
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
+"""
+Youtube-dl client.
+"""
 
 
 def debug(message: str) -> None:
@@ -305,6 +313,14 @@ def mark_word(sentence: str, word: str) -> str:
 
 
 def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
+    """Searches for a query in the transcript data.
+
+    Args:
+        query (str): The query to search for.
+
+    Returns:
+        Dict[str, List[Dict[str, Any]]]: The search results.
+    """
     SEARCH_PARAMS["q"] = f"\"{query}\""
 
     response = TYPESENSE.collections["transcripts"].documents.search(
