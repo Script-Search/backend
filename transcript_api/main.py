@@ -48,6 +48,11 @@ LIMIT = 10
 The maximum number of videos to process in a playlist or channel.
 """
 
+WORD_LIMIT = 5
+"""
+The maximum number of words allowed in a query.
+"""
+
 TYPESENSE_API_KEY = os.environ.get("TYPESENSE_API_KEY")
 """
 Typesense API key.
@@ -291,6 +296,8 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     debug(f"Finding indexes of {query} in transcript")
     words = query.split()
+    if len(words) > WORD_LIMIT:
+        raise ValueError(f"Query is too long. Please limit to {WORD_LIMIT} words or less.")
 
     return single_word(transcript, query) if len(words) == 1 else multi_word(transcript, words)
 
@@ -398,4 +405,11 @@ def transcript_api(request: Request) -> Request:
         data = search(query)
         return (data, 200, HEADERS)
 
-    return (jsonify({"status": "success", "query": False}), 200, HEADERS)
+    data = {
+        "status": "success",
+        "query": False,
+        "url": False,
+        "word_limit": WORD_LIMIT,
+    }
+
+    return (jsonify(data), 200, HEADERS)
