@@ -18,7 +18,7 @@ topic_path = None
 logger_cloud = None
 logger_console = None
 
-DEBUG = False
+DEBUG = True
 
 LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
@@ -39,9 +39,8 @@ SEARCH_PARAMS = {
     "q": None,
     "query_by": "transcript",
     "sort_by": "upload_date:desc",
-    # "filter_by": "",
+    "filter_by": "",
     "limit": 250,
-    "limit_hits": 250,
     "highlight_start_tag": "",
     "highlight_end_tag": "",
 }
@@ -148,27 +147,30 @@ def process_url(url: str) -> List[str]:
     is_channel = re.search(VALID_CHANNEL, url)
 
     if is_video:
-        send_url(url)
+        # send_url(url)
         debug(f"Send this video to Pub/Sub: {url}")
     elif is_playlist:
-        # ss = io.StringIO()
-        # ss.write("video_id:=[")
+        ss = io.StringIO()
+        ss.write("video_id:=[")
         for video_url in get_playlist_videos(url):
-            send_url(video_url)
-            # ss.write(f"`{getID(video_url)}`,")
+            # send_url(video_url)
+            ss.write(f"`{getID(video_url)}`,")
             debug(f"Send this video to Pub/Sub: {video_url}")
-        # ss.write("]")
-        # SEARCH_PARAMS["filter_by"] = ss.getvalue()
-        # debug(SEARCH_PARAMS["filter_by"])
+        ss.write("]")
+        string = ss.getvalue()
+        string = string[:-2] + string[-1]
+        SEARCH_PARAMS["filter_by"] = string
+        debug(SEARCH_PARAMS["filter_by"])
     elif is_channel:
         if url.endswith("/videos"):
             url = url[:-7]
 
         channel_id, videos = get_channel_videos(url)
-        debug(f"Channel ID: {channel_id}")
-        # SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}" 
+        SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}"
+        debug(SEARCH_PARAMS["filter_by"])
+
         for video_url in videos:
-            send_url(video_url)
+            # send_url(video_url)
             debug(f"Send this video to Pub/Sub: {video_url}")
     else:
         raise ValueError(f"Invalid URL: {url}")
@@ -220,7 +222,7 @@ def video_exists(video_id) -> bool:
         db = firestore.client()
         test_collection = db.collection("test")
 
-    document = test_collection.document(video_id).get()
+    document = test_collection.document(video_id)
     return bool(document)
 
 def send_url(url: str) -> None:
@@ -236,8 +238,9 @@ def send_url(url: str) -> None:
     id = getID(url)
 
     if video_exists(id):
+        debug(f"Video {id} already exists in Firestore")
         return
-
+    
     global publisher, topic_path
     if not publisher:
         cred = service_account.Credentials.from_service_account_file(
@@ -399,6 +402,7 @@ def transcript_api(request: Request) -> Request:
         - HTTP status code.
         - Headers for the response.
     """
+    debug(f"Transcript API called")
 
     request_json = request.get_json(silent=True)
     request_args = request.args
