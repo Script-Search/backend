@@ -7,7 +7,7 @@ import yt_dlp
 
 from firebase_admin import credentials, firestore, initialize_app
 from lxml import etree
-from Typing import Tuple, List
+from typing import Tuple, List
 
 test_collection = None
 
@@ -62,7 +62,7 @@ def parse_timestamp(timestamp: str) -> int:
     return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
 
 
-def parse_ttml(ttml_file_name: str) -> Tupe[List[str], List[int]]:
+def parse_ttml(ttml_file_name: str) -> Tuple[List[str], List[int]]:
     """Parse the ttml file into a list of subtitles and a list of timestamps
 
     Args:
