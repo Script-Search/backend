@@ -7,15 +7,19 @@ from flask import jsonify, Request
 from google.cloud import pubsub_v1, logging
 from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
+from logging import DEBUG, getLogger, StreamHandler, Formatter
 from typing import Dict, Any, List
 
 
 test_collection = None
 publisher = None
 topic_path = None
-logger = None
+logger_cloud = None
+logger_console = None
 
 DEBUG = False
+
+LOG_FORMAT = Formatter("%(asctime)s [%(levelname)s] %(message)s")
 
 HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -46,6 +50,11 @@ TypeSense search parameters.
 LIMIT = 10
 """
 The maximum number of videos to process in a playlist or channel.
+"""
+
+WORD_LIMIT = 5
+"""
+The maximum number of words allowed in a query.
 """
 
 TYPESENSE_API_KEY = os.environ.get("TYPESENSE_API_KEY")
@@ -97,21 +106,28 @@ def debug(message: str) -> None:
     Args:
         message (str): The message to print.
 
-    Returns:
+    Retu_cloudrns:
         None
     """
 
-    global logger
+    global logger_cloud, logger_console
 
-    if not logger:
+    if not logger_cloud:
         cred = service_account.Credentials.from_service_account_file(
             "credentials_pub_sub.json")
         client = logging.Client(credentials=cred)
-        logger = client.logger("scriptsearch")
+        logger_cloud = client.logger("scriptsearch")
+
+    if not logger_console:
+        logger_console = getLogger("scriptsearch")
+        logger_console.setLevel(DEBUG)
+        handler = StreamHandler()
+        handler.setFormatter(LOG_FORMAT)
+        logger_console.addHandler(handler)
 
     if DEBUG:
-        logger.log_text(message, severity="DEBUG")
-        print(message)
+        # logger_cloud.log_text(message, severity="DEBUG")
+        logger_console.log(DEBUG, message)
     return
 
 
@@ -159,7 +175,6 @@ def process_url(url: str) -> List[str]:
         for video_url in get_playlist_videos(url):
             send_url(video_url)
             debug(f"Send this video to Pub/Sub: {video_url}")
-        debug("=" * 100)
     elif is_channel:
         if url.endswith("/videos"):
             url = url[:-7]
@@ -167,7 +182,6 @@ def process_url(url: str) -> List[str]:
         for video_url in get_channel_videos(url):
             send_url(video_url)
             debug(f"Send this video to Pub/Sub: {video_url}")
-        debug("=" * 100)
     else:
         raise ValueError(f"Invalid URL: {url}")
     return
@@ -246,11 +260,10 @@ def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     indexes = []
     for i, snippet in enumerate(transcript):
-        if query in snippet["matched_tokens"]:
+        if query.casefold() in map(str.casefold, snippet["matched_tokens"]):
             debug(f"Snippet: {snippet}")
 
             indexes.append(i)
-    debug("-" * 50)
     return indexes
 
 
@@ -267,13 +280,18 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
     """
 
     indexes = []
-    for i, snippet in enumerate(transcript):
-        if words[0] in snippet["matched_tokens"]:
+    for i, snip in enumerate(transcript):
+        snippet = map(str.casefold, snip["matched_tokens"])
+        if words[0].casefold() in snippet:
+            next_snippet = map(str.casefold(), transcript[i + 1]) if i + 1 < len(transcript) else None
             debug(f"Snippet: {snippet}")
-            debug(f"Next Snippet: {transcript[i + 1]}")
-            if all(word in snippet["matched_tokens"] or word in transcript[i + 1]["matched_tokens"] for word in words[1:]):
-                indexes.append(i)
-    debug("-" * 50)
+            debug(f"Next Snippet: {next_snippet}")
+            if next_snippet:
+                if all(word in snippet or word in next_snippet for word in words[1:]):
+                    indexes.append(i)
+            else:
+                if all(word in snippet for word in words[1:]):
+                    indexes.append(i)
     return indexes
 
 
@@ -291,6 +309,8 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     debug(f"Finding indexes of {query} in transcript")
     words = query.split()
+    if len(words) > WORD_LIMIT:
+        raise ValueError(f"Query is too long. Please limit to {WORD_LIMIT} words or less.")
 
     return single_word(transcript, query) if len(words) == 1 else multi_word(transcript, words)
 
@@ -347,10 +367,8 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
                 {"snippet": mark_word(document["transcript"][index], SEARCH_PARAMS["q"][1:-1]), "timestamp": document["timestamps"][index]})
 
         debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
-        debug("-" * 50)
 
         result["hits"].append(data)
-    debug("=" * 100)
     return result
 
 
@@ -398,4 +416,11 @@ def transcript_api(request: Request) -> Request:
         data = search(query)
         return (data, 200, HEADERS)
 
-    return (jsonify({"status": "success", "query": False}), 200, HEADERS)
+    data = {
+        "status": "success",
+        "query": False,
+        "url": False,
+        "word_limit": WORD_LIMIT,
+    }
+
+    return (jsonify(data), 200, HEADERS)
