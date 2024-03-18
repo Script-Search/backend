@@ -291,7 +291,7 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
     for i, snip in enumerate(transcript):
         snippet = map(str.casefold, snip["matched_tokens"])
         if words[0].casefold() in snippet:
-            next_snippet = map(str.casefold(), transcript[i + 1]) if i + 1 < len(transcript) else None
+            next_snippet = map(str.casefold, transcript[i + 1]) if i + 1 < len(transcript) else None
             debug(f"Snippet: {snippet}")
             debug(f"Next Snippet: {next_snippet}")
             if next_snippet:
