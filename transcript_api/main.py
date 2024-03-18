@@ -1,4 +1,5 @@
 import functions_framework
+import io
 import os
 import re
 import typesense
@@ -17,7 +18,7 @@ topic_path = None
 logger_cloud = None
 logger_console = None
 
-DEBUG = True
+DEBUG = False
 
 LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
@@ -38,7 +39,7 @@ SEARCH_PARAMS = {
     "q": None,
     "query_by": "transcript",
     "sort_by": "upload_date:desc",
-    "filter_by": None,
+    # "filter_by": "",
     "limit": 250,
     "limit_hits": 250,
     "highlight_start_tag": "",
@@ -150,23 +151,24 @@ def process_url(url: str) -> List[str]:
         send_url(url)
         debug(f"Send this video to Pub/Sub: {url}")
     elif is_playlist:
-        ss = io.StringIO()
-        ss.write("video_id:=[")
+        # ss = io.StringIO()
+        # ss.write("video_id:=[")
         for video_url in get_playlist_videos(url):
-            # send_url(video_url)
-            ss.write(f"`{video_url}`,")
+            send_url(video_url)
+            # ss.write(f"`{getID(video_url)}`,")
             debug(f"Send this video to Pub/Sub: {video_url}")
-        ss.write("]")
-        SEARCH_PARAMS["filter_by"] = ss.getvalue()
+        # ss.write("]")
+        # SEARCH_PARAMS["filter_by"] = ss.getvalue()
+        # debug(SEARCH_PARAMS["filter_by"])
     elif is_channel:
         if url.endswith("/videos"):
             url = url[:-7]
 
         channel_id, videos = get_channel_videos(url)
         debug(f"Channel ID: {channel_id}")
-        SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}" 
+        # SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}" 
         for video_url in videos:
-            # send_url(video_url)
+            send_url(video_url)
             debug(f"Send this video to Pub/Sub: {video_url}")
     else:
         raise ValueError(f"Invalid URL: {url}")
@@ -348,7 +350,7 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
         Dict[str, List[Dict[str, Any]]]: The search results.
     """
     SEARCH_PARAMS["q"] = f"\"{query}\""
-    SEARCH_PARAMS["filter_by"] = None
+    # SEARCH_PARAMS["filter_by"] = ""
 
     response = TYPESENSE.collections["transcripts"].documents.search(
         SEARCH_PARAMS)
