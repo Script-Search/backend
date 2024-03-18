@@ -38,6 +38,7 @@ SEARCH_PARAMS = {
     "q": None,
     "query_by": "transcript",
     "sort_by": "upload_date:desc",
+    "filter_by": None,
     "limit": 250,
     "limit_hits": 250,
     "highlight_start_tag": "",
@@ -93,7 +94,6 @@ YDL_OPS = {
 Youtube-dl options.
 """
 
-
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
 """
 Youtube-dl client.
@@ -131,28 +131,6 @@ def debug(message: str) -> None:
     return
 
 
-def get_transcript(video_id: str) -> Dict[str, Any]:
-    """Get the transcript for a video.
-
-    Args:
-        video_id (str): The video ID.
-
-
-    Returns:
-        Dict[str, Any]: The transcript data.
-    """
-
-    global test_collection
-    if not test_collection:
-        cred = credentials.Certificate("credentials_firebase.json")
-        initialize_app(cred)
-        db = firestore.client()
-        test_collection = db.collection("test")
-
-    document = test_collection.document(video_id).get()
-    return document.to_dict()
-
-
 def process_url(url: str) -> List[str]:
     """
     Takes a Universal Reference Link, determines if the url is a channel or a playlist and returns NUMBER most recent videos.
@@ -172,9 +150,14 @@ def process_url(url: str) -> List[str]:
         send_url(url)
         debug(f"Send this video to Pub/Sub: {url}")
     elif is_playlist:
+        ss = io.StringIO()
+        ss.write("video_id:=[")
         for video_url in get_playlist_videos(url):
             send_url(video_url)
+            ss.write(f"`{video_url}`,")
             debug(f"Send this video to Pub/Sub: {video_url}")
+        ss.write("]")
+        SEARCH_PARAMS["filter_by"] = ss.getvalue()
     elif is_channel:
         if url.endswith("/videos"):
             url = url[:-7]
@@ -342,6 +325,7 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
         Dict[str, List[Dict[str, Any]]]: The search results.
     """
     SEARCH_PARAMS["q"] = f"\"{query}\""
+    SEARCH_PARAMS["filter_by"] = None
 
     response = TYPESENSE.collections["transcripts"].documents.search(
         SEARCH_PARAMS)
