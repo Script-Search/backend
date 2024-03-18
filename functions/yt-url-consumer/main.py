@@ -126,6 +126,7 @@ def insert_transcript(ttml_file_name: str) -> bool:
 
         doc_ref = test_collection.document(video_id)
         doc_ref.set({
+            "video_id": video_id,
             "channel_id": channel_id,
             "channel_name": channel_name,
             "duration": int(duration),
@@ -160,7 +161,7 @@ def transcript_downloader(cloud_event: functions_framework.CloudEvent) -> None:
         print("watch not in URL")
         return 400
 
-    ydl.download(URL)
+    YDL.download(URL)
 
     # '''
     # TODO: Find a way to keep the info in memory instead of writing locally
