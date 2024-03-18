@@ -202,6 +202,21 @@ def get_channel_videos(channel_url: str) -> List[str]:
     return video_urls
 
 
+def getID(url: str) -> str:
+    return ""
+
+
+def video_exists(video_id) -> bool:
+    global test_collection
+    if not test_collection:
+        cred = credentials.Certificate("credentials_firebase.json")
+        initialize_app(cred)
+        db = firestore.client()
+        test_collection = db.collection("test")
+
+    document = test_collection.document(video_id).get()
+    return bool(document)
+
 def send_url(url: str) -> None:
     """
     Sends a video url to Pub/Sub
@@ -212,6 +227,10 @@ def send_url(url: str) -> None:
     Returns:
         None
     """
+    id = getID(url)
+
+    if video_exists(id):
+        return
 
     global publisher, topic_path
     if not publisher:
