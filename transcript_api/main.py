@@ -17,7 +17,7 @@ topic_path = None
 logger_cloud = None
 logger_console = None
 
-DEBUG = True
+DEBUG = False
 
 LOG_FORMAT = Formatter("%(asctime)s [%(levelname)s] %(message)s")
 
