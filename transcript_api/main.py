@@ -1,4 +1,5 @@
 import functions_framework
+import io
 import os
 import re
 import typesense
@@ -8,7 +9,7 @@ from google.cloud import pubsub_v1, logging
 from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
 from logging import DEBUG, getLogger, StreamHandler, Formatter
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Tuple
 
 
 test_collection = None
@@ -19,7 +20,7 @@ logger_console = None
 
 DEBUG = False
 
-LOG_FORMAT = Formatter("%(asctime)s [%(levelname)s] %(message)s")
+LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
 HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -38,6 +39,7 @@ SEARCH_PARAMS = {
     "q": None,
     "query_by": "transcript",
     "sort_by": "upload_date:desc",
+    # "filter_by": "",
     "limit": 250,
     "limit_hits": 250,
     "highlight_start_tag": "",
@@ -93,7 +95,6 @@ YDL_OPS = {
 Youtube-dl options.
 """
 
-
 YDL = yt_dlp.YoutubeDL(YDL_OPS)
 """
 Youtube-dl client.
@@ -131,28 +132,6 @@ def debug(message: str) -> None:
     return
 
 
-def get_transcript(video_id: str) -> Dict[str, Any]:
-    """Get the transcript for a video.
-
-    Args:
-        video_id (str): The video ID.
-
-
-    Returns:
-        Dict[str, Any]: The transcript data.
-    """
-
-    global test_collection
-    if not test_collection:
-        cred = credentials.Certificate("credentials_firebase.json")
-        initialize_app(cred)
-        db = firestore.client()
-        test_collection = db.collection("test")
-
-    document = test_collection.document(video_id).get()
-    return document.to_dict()
-
-
 def process_url(url: str) -> List[str]:
     """
     Takes a Universal Reference Link, determines if the url is a channel or a playlist and returns NUMBER most recent videos.
@@ -172,14 +151,23 @@ def process_url(url: str) -> List[str]:
         send_url(url)
         debug(f"Send this video to Pub/Sub: {url}")
     elif is_playlist:
+        # ss = io.StringIO()
+        # ss.write("video_id:=[")
         for video_url in get_playlist_videos(url):
             send_url(video_url)
+            # ss.write(f"`{getID(video_url)}`,")
             debug(f"Send this video to Pub/Sub: {video_url}")
+        # ss.write("]")
+        # SEARCH_PARAMS["filter_by"] = ss.getvalue()
+        # debug(SEARCH_PARAMS["filter_by"])
     elif is_channel:
         if url.endswith("/videos"):
             url = url[:-7]
 
-        for video_url in get_channel_videos(url):
+        channel_id, videos = get_channel_videos(url)
+        debug(f"Channel ID: {channel_id}")
+        # SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}" 
+        for video_url in videos:
             send_url(video_url)
             debug(f"Send this video to Pub/Sub: {video_url}")
     else:
@@ -203,7 +191,7 @@ def get_playlist_videos(playlist_url: str) -> List[str]:
     return video_urls
 
 
-def get_channel_videos(channel_url: str) -> List[str]:
+def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
     """Get the video urls from a channel.
 
     Args:
@@ -216,8 +204,24 @@ def get_channel_videos(channel_url: str) -> List[str]:
     channel = YDL.extract_info(channel_url, download=False)
     video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
 
-    return video_urls
+    return channel["channel_id"], video_urls
 
+
+def getID(url: str) -> str:
+    match = re.match(VALID_VIDEO, url)
+    return match.group(5) if match else None
+
+
+def video_exists(video_id) -> bool:
+    global test_collection
+    if not test_collection:
+        cred = credentials.Certificate("credentials_firebase.json")
+        initialize_app(cred)
+        db = firestore.client()
+        test_collection = db.collection("test")
+
+    document = test_collection.document(video_id).get()
+    return bool(document)
 
 def send_url(url: str) -> None:
     """
@@ -229,6 +233,10 @@ def send_url(url: str) -> None:
     Returns:
         None
     """
+    id = getID(url)
+
+    if video_exists(id):
+        return
 
     global publisher, topic_path
     if not publisher:
@@ -342,6 +350,7 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
         Dict[str, List[Dict[str, Any]]]: The search results.
     """
     SEARCH_PARAMS["q"] = f"\"{query}\""
+    # SEARCH_PARAMS["filter_by"] = ""
 
     response = TYPESENSE.collections["transcripts"].documents.search(
         SEARCH_PARAMS)
@@ -418,8 +427,8 @@ def transcript_api(request: Request) -> Request:
 
     data = {
         "status": "success",
-        "query": False,
-        "url": False,
+        "query": bool(query),
+        "url": bool(url),
         "word_limit": WORD_LIMIT,
     }
 
