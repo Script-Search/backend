@@ -1,4 +1,4 @@
 firebase_admin==6.4.0
 functions_framework==3.*
 lxml==5.1.0
-yt_dlp==2023.12.30
+yt_dlp==2024.3.10
