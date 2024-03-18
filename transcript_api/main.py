@@ -7,7 +7,7 @@ from flask import jsonify, Request
 from google.cloud import pubsub_v1, logging
 from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
-from logging import DEBUG, getLogger
+from logging import DEBUG, getLogger, StreamHandler, Formatter
 from typing import Dict, Any, List
 
 
@@ -18,6 +18,8 @@ logger_cloud = None
 logger_console = None
 
 DEBUG = True
+
+LOG_FORMAT = Formatter("%(asctime)s [%(levelname)s] %(message)s")
 
 HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -119,6 +121,9 @@ def debug(message: str) -> None:
     if not logger_console:
         logger_console = getLogger("scriptsearch")
         logger_console.setLevel(DEBUG)
+        handler = StreamHandler()
+        handler.setFormatter(LOG_FORMAT)
+        logger_console.addHandler(handler)
 
     if DEBUG:
         # logger_cloud.log_text(message, severity="DEBUG")
@@ -255,7 +260,7 @@ def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     indexes = []
     for i, snippet in enumerate(transcript):
-        if query in snippet["matched_tokens"]:
+        if query.casefold() in map(str.casefold, snippet["matched_tokens"]):
             debug(f"Snippet: {snippet}")
 
             indexes.append(i)
@@ -275,16 +280,17 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
     """
 
     indexes = []
-    for i, snippet in enumerate(transcript):
-        if words[0] in snippet["matched_tokens"]:
-            next_snippet = transcript[i + 1] if i + 1 < len(transcript) else None
+    for i, snip in enumerate(transcript):
+        snippet = map(str.casefold, snip["matched_tokens"])
+        if words[0].casefold() in snippet:
+            next_snippet = map(str.casefold(), transcript[i + 1]) if i + 1 < len(transcript) else None
             debug(f"Snippet: {snippet}")
             debug(f"Next Snippet: {next_snippet}")
             if next_snippet:
-                if all(word in snippet["matched_tokens"] or word in next_snippet["matched_tokens"] for word in words[1:]):
+                if all(word in snippet or word in next_snippet for word in words[1:]):
                     indexes.append(i)
             else:
-                if all(word in snippet["matched_tokens"] for word in words[1:]):
+                if all(word in snippet for word in words[1:]):
                     indexes.append(i)
     return indexes
 
