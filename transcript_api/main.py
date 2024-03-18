@@ -206,7 +206,8 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
 
 
 def getID(url: str) -> str:
-    return ""
+    match = re.match(VALID_VIDEO, url)
+    return match.group(5) if match else None
 
 
 def video_exists(video_id) -> bool:
