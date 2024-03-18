@@ -8,7 +8,7 @@ from google.cloud import pubsub_v1, logging
 from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
 from logging import DEBUG, getLogger, StreamHandler, Formatter
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Tuple
 
 
 test_collection = None
@@ -17,9 +17,9 @@ topic_path = None
 logger_cloud = None
 logger_console = None
 
-DEBUG = False
+DEBUG = True
 
-LOG_FORMAT = Formatter("%(asctime)s [%(levelname)s] %(message)s")
+LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
 HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -153,7 +153,7 @@ def process_url(url: str) -> List[str]:
         ss = io.StringIO()
         ss.write("video_id:=[")
         for video_url in get_playlist_videos(url):
-            send_url(video_url)
+            # send_url(video_url)
             ss.write(f"`{video_url}`,")
             debug(f"Send this video to Pub/Sub: {video_url}")
         ss.write("]")
@@ -162,8 +162,11 @@ def process_url(url: str) -> List[str]:
         if url.endswith("/videos"):
             url = url[:-7]
 
-        for video_url in get_channel_videos(url):
-            send_url(video_url)
+        channel_id, videos = get_channel_videos(url)
+        debug(f"Channel ID: {channel_id}")
+        SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}" 
+        for video_url in videos:
+            # send_url(video_url)
             debug(f"Send this video to Pub/Sub: {video_url}")
     else:
         raise ValueError(f"Invalid URL: {url}")
@@ -186,7 +189,7 @@ def get_playlist_videos(playlist_url: str) -> List[str]:
     return video_urls
 
 
-def get_channel_videos(channel_url: str) -> List[str]:
+def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
     """Get the video urls from a channel.
 
     Args:
@@ -199,7 +202,7 @@ def get_channel_videos(channel_url: str) -> List[str]:
     channel = YDL.extract_info(channel_url, download=False)
     video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
 
-    return video_urls
+    return channel["channel_id"], video_urls
 
 
 def getID(url: str) -> str:
@@ -421,8 +424,8 @@ def transcript_api(request: Request) -> Request:
 
     data = {
         "status": "success",
-        "query": False,
-        "url": False,
+        "query": bool(query),
+        "url": bool(url),
         "word_limit": WORD_LIMIT,
     }
 
