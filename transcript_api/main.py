@@ -215,7 +215,16 @@ def getID(url: str) -> str:
     return match.group(5) if match else None
 
 
-def video_exists(video_id) -> bool:
+def video_exists(video_id: str) -> bool:
+    """Checks to see if a video exists in Firestore
+
+    Args:
+        video_id (str): The video ID
+
+    Returns:
+        bool: True if the video exists, False otherwise
+    """
+
     global test_collection
     if not test_collection:
         cred = credentials.Certificate("credentials_firebase.json")
@@ -223,8 +232,8 @@ def video_exists(video_id) -> bool:
         db = firestore.client()
         test_collection = db.collection("test")
 
-    document = test_collection.document(video_id)
-    return bool(document)
+    document = test_collection.document(video_id).get()
+    return document.exists
 
 def send_url(url: str) -> None:
     """
@@ -359,7 +368,7 @@ def search(query: str) -> List[Dict[str, Any]]:
         Dict[str, List[Dict[str, Any]]]: The search results.
     """
     SEARCH_PARAMS["q"] = f"\"{query}\""
-    # SEARCH_PARAMS["filter_by"] = ""
+    SEARCH_PARAMS["filter_by"] = ""
 
     debug(f"Searching for {SEARCH_PARAMS["q"]} in transcripts.")
 
@@ -414,6 +423,8 @@ def transcript_api(request: Request) -> Request:
 
     request_json = request.get_json(silent=True)
     request_args = request.args
+
+    debug(request_args)
 
     url = None
     if request_json and "url" in request_json:
