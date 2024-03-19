@@ -141,25 +141,27 @@ def process_url(url: str) -> List[str]:
     Returns:
         List[str]: list of video urls
     """
+    debug(f"Processing URL: {url}")
 
     is_video = re.search(VALID_VIDEO, url)
     is_playlist = re.search(VALID_PLAYLIST, url)
     is_channel = re.search(VALID_CHANNEL, url)
 
     if is_video:
-        # send_url(url)
-        debug(f"Send this video to Pub/Sub: {url}")
+        send_url(url)
     elif is_playlist:
         ss = io.StringIO()
         ss.write("video_id:=[")
+
         for video_url in get_playlist_videos(url):
-            # send_url(video_url)
+            send_url(video_url)
             ss.write(f"`{getID(video_url)}`,")
-            debug(f"Send this video to Pub/Sub: {video_url}")
+        
         ss.write("]")
         string = ss.getvalue()
         string = string[:-2] + string[-1]
         SEARCH_PARAMS["filter_by"] = string
+
         debug(SEARCH_PARAMS["filter_by"])
     elif is_channel:
         if url.endswith("/videos"):
@@ -170,8 +172,7 @@ def process_url(url: str) -> List[str]:
         debug(SEARCH_PARAMS["filter_by"])
 
         for video_url in videos:
-            # send_url(video_url)
-            debug(f"Send this video to Pub/Sub: {video_url}")
+            send_url(video_url)
     else:
         raise ValueError(f"Invalid URL: {url}")
     return
@@ -240,7 +241,12 @@ def send_url(url: str) -> None:
     if video_exists(id):
         debug(f"Video {id} already exists in Firestore")
         return
+    else:
+        debug(f"Video {id} does not exist in Firestore")
+        return
     
+    debug(f"Sending URL: {url}")
+
     global publisher, topic_path
     if not publisher:
         cred = service_account.Credentials.from_service_account_file(
@@ -330,7 +336,7 @@ def mark_word(sentence: str, word: str) -> str:
     """
     Takes every instance of word within a sentence and wraps it in <mark> tags.
     This algorithm will also ignore cases.
-
+    
     Args:
         sentence (str): The sentence
         word (str): The word
@@ -343,7 +349,7 @@ def mark_word(sentence: str, word: str) -> str:
     return pattern.sub(r"<mark>\g<0></mark>", sentence)
 
 
-def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
+def search(query: str) -> List[Dict[str, Any]]:
     """Searches for a query in the transcript data.
 
     Args:
@@ -355,10 +361,12 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
     SEARCH_PARAMS["q"] = f"\"{query}\""
     # SEARCH_PARAMS["filter_by"] = ""
 
+    debug(f"Searching for {SEARCH_PARAMS["q"]} in transcripts.")
+
     response = TYPESENSE.collections["transcripts"].documents.search(
         SEARCH_PARAMS)
 
-    result = {"hits": []}
+    result = []
 
     for hit in response["hits"]:
         # get individual document featuring match
@@ -380,7 +388,7 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
 
         debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
-        result["hits"].append(data)
+        result.append(data)
     return result
 
 
@@ -425,15 +433,16 @@ def transcript_api(request: Request) -> Request:
     elif request_args and "query" in request_args:
         query = request_args["query"]
 
-    if (query != None):
-        data = search(query)
-        return (data, 200, HEADERS)
-
     data = {
         "status": "success",
         "query": bool(query),
         "url": bool(url),
         "word_limit": WORD_LIMIT,
+        "hits": None,
     }
+
+    if (query != None):
+        data["hits"] = search(query)
+        return (jsonify(data), 200, HEADERS)
 
     return (jsonify(data), 200, HEADERS)
