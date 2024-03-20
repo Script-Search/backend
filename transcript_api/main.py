@@ -19,7 +19,7 @@ topic_path = None
 logger_cloud = None
 logger_console = None
 
-DEBUG_FLAG = True
+DEBUG_FLAG = False
 
 LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
@@ -270,9 +270,6 @@ def send_url(url: str) -> None:
     if video_exists(id):
         debug(f"Video {id} already exists in Firestore")
         return
-
-    debug(f"Video {id} does not exist in Firestore")
-    return
 
     debug(f"Sending URL: {url}")
 
