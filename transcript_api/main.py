@@ -100,6 +100,14 @@ Youtube-dl client.
 """
 
 
+class URLType(Enum):
+    """Enum for URL types."""
+
+    VIDEO       = 1
+    PLAYLIST    = 2
+    CHANNEL     = 3
+
+
 def debug(message: str) -> None:
     """Print a debug message.
 
@@ -131,51 +139,59 @@ def debug(message: str) -> None:
     return
 
 
-def process_url(url: str) -> List[str]:
+def determine_video_type(url: str) -> URLType:
+    """Determines the type of video from the URL.
+
+    Args:
+        url (str): The URL.
+
+    Returns:
+        URLType: The type of video.
+    """
+
+    if re.search(VALID_VIDEO, url):
+        return URLType.VIDEO
+    elif re.search(VALID_PLAYLIST, url):
+        return URLType.PLAYLIST
+    elif re.search(VALID_CHANNEL, url):
+        return URLType.CHANNEL
+    else:
+        raise ValueError(f"Invalid URL: {url}")
+
+
+def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     """
     Takes a Universal Reference Link, determines if the url is a channel or a playlist and returns NUMBER most recent videos.
 
     Args:
         url (str): Universsal Reference Link
-
-    Returns:
-        List[str]: list of video urls
     """
     debug(f"Processing URL: {url}")
 
-    is_video = re.search(VALID_VIDEO, url)
-    is_playlist = re.search(VALID_PLAYLIST, url)
-    is_channel = re.search(VALID_CHANNEL, url)
+    data = {
+        "video_ids": [],
+        "channel_id": None,
+    }
 
-    if is_video:
+    if url_type == URLType.VIDEO:
         send_url(url)
-    elif is_playlist:
+    elif url_type == URLType.PLAYLIST:
         ss = io.StringIO()
-        ss.write("video_id:=[")
-
+        ss.write("[")
         for video_url in get_playlist_videos(url):
             send_url(video_url)
-            ss.write(f"`{getID(video_url)}`,")
-        
+            ss.write(f'`{getID(video_url)}`,')
         ss.write("]")
-        string = ss.getvalue()
-        string = string[:-2] + string[-1]
-        SEARCH_PARAMS["filter_by"] = string
-
-        debug(SEARCH_PARAMS["filter_by"])
-    elif is_channel:
-        if url.endswith("/videos"):
-            url = url[:-7]
-
-        channel_id, videos = get_channel_videos(url)
-        SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}"
-        debug(SEARCH_PARAMS["filter_by"])
-
+        data["video_ids"] = ss.getvalue()
+        data["video_ids"] = data["video_ids"].replace(",]", "]")
+    elif url_type == URLType.CHANNEL:
+        data["channel_id"], videos = get_channel_videos(url)
         for video_url in videos:
             send_url(video_url)
     else:
         raise ValueError(f"Invalid URL: {url}")
-    return
+
+    return data
 
 
 def get_playlist_videos(playlist_url: str) -> List[str]:
@@ -205,7 +221,6 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
     """
 
     channel = YDL.extract_info(channel_url, download=False)
-    debug(channel.keys())
     video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
 
     return channel["channel_id"], video_urls
@@ -221,7 +236,7 @@ def video_exists(video_id: str) -> bool:
 
     Args:
         video_id (str): The video ID
-
+ 
     Returns:
         bool: True if the video exists, False otherwise
     """
@@ -237,6 +252,7 @@ def video_exists(video_id: str) -> bool:
 
     document = test_collection.document(video_id).get()
     return document.exists
+
 
 def send_url(url: str) -> None:
     """
@@ -371,7 +387,6 @@ def search(query: str) -> List[Dict[str, Any]]:
         Dict[str, List[Dict[str, Any]]]: The search results.
     """
     SEARCH_PARAMS["q"] = f"\"{query}\""
-    SEARCH_PARAMS["filter_by"] = ""
 
     debug(f"Searching for {SEARCH_PARAMS['q']} in transcripts.")
 
@@ -426,32 +441,60 @@ def transcript_api(request: Request) -> Request:
 
     request_json = request.get_json(silent=True)
     request_args = request.args
+    
+    data = {
+        "status": "success",
+        "word_limit": WORD_LIMIT,
+        "channel_id": None,
+        "video_ids": None,
+        "hits": None,
+    }
+
+    SEARCH_PARAMS["filter_by"] = ""
+    
+    channel_id = None
+    if request_json and "channel_id" in request_json:
+        channel_id = request_json["channel_id"]
+    elif request_args and "channel_id" in request_args:
+        channel_id = request_args["channel_id"]
+
+    if channel_id:
+        SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}"
+
+    video_ids = None
+    if request_json and "video_ids" in request_json:
+        video_ids = request_json["video_ids"]
+    elif request_args and "video_ids" in request_args:
+        video_ids = request_args["video_ids"]
+    
+    if video_ids:
+        ss = io.StringIO()
+        ss.write("video_id:=")
+        ss.write(video_ids)
+        SEARCH_PARAMS["filter_by"] = ss.getvalue()
 
     url = None
     if request_json and "url" in request_json:
         url = request_json["url"]
     elif request_args and "url" in request_args:
         url = request_args["url"]
+    
+    url_type = get_url_type(url)
 
-    if url != None:
+    if url:
+        data_temp = None
         try:
-            process_url(url)
+            data_temp = process_url(url, url_type)
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, HEADERS)
+        data["video_ids"] = data_temp["video_ids"]
+        data["channel_id"] = data_temp["channel_id"]
 
     query = None
     if request_json and "query" in request_json:
         query = request_json["query"]
     elif request_args and "query" in request_args:
         query = request_args["query"]
-
-    data = {
-        "status": "success",
-        "query": bool(query),
-        "url": bool(url),
-        "word_limit": WORD_LIMIT,
-        "hits": None,
-    }
 
     if (query != None):
         try:
