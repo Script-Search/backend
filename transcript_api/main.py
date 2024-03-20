@@ -354,8 +354,7 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     debug(f"Finding indexes of {query} in transcript")
     words = query.split()
     if len(words) > WORD_LIMIT:
-        raise ValueError(f"Query is too long. Please limit to {
-                         WORD_LIMIT} words or less.")
+        raise ValueError(f"Query is too long. Please limit to {WORD_LIMIT} words or less.")
 
     return single_word(transcript, query) if len(words) == 1 else multi_word(transcript, words)
 
