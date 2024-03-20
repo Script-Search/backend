@@ -19,7 +19,7 @@ topic_path = None
 logger_cloud = None
 logger_console = None
 
-DEBUG = True
+DEBUG_FLAG = True
 
 LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
@@ -104,9 +104,9 @@ Youtube-dl client.
 class URLType(Enum):
     """Enum for URL types."""
 
-    VIDEO       = 1
-    PLAYLIST    = 2
-    CHANNEL     = 3
+    VIDEO = 1
+    PLAYLIST = 2
+    CHANNEL = 3
 
 
 def debug(message: str) -> None:
@@ -134,7 +134,7 @@ def debug(message: str) -> None:
         handler.setFormatter(LOG_FORMAT)
         logger_console.addHandler(handler)
 
-    if DEBUG:
+    if DEBUG_FLAG:
         # logger_cloud.log_text(message, severity="DEBUG")
         logger_console.log(DEBUG, message)
     return
@@ -237,7 +237,7 @@ def video_exists(video_id: str) -> bool:
 
     Args:
         video_id (str): The video ID
- 
+
     Returns:
         bool: True if the video exists, False otherwise
     """
@@ -270,10 +270,10 @@ def send_url(url: str) -> None:
     if video_exists(id):
         debug(f"Video {id} already exists in Firestore")
         return
-    else:
-        debug(f"Video {id} does not exist in Firestore")
-        return
-    
+
+    debug(f"Video {id} does not exist in Firestore")
+    return
+
     debug(f"Sending URL: {url}")
 
     global publisher, topic_path
@@ -329,7 +329,8 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
     for i, snip in enumerate(transcript):
         snippet = map(str.casefold, snip["matched_tokens"])
         if words[0].casefold() in snippet:
-            next_snippet = map(str.casefold, transcript[i + 1]) if i + 1 < len(transcript) else None
+            next_snippet = map(
+                str.casefold, transcript[i + 1]) if i + 1 < len(transcript) else None
             debug(f"Snippet: {snippet}")
             debug(f"Next Snippet: {next_snippet}")
             if next_snippet:
@@ -356,7 +357,8 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     debug(f"Finding indexes of {query} in transcript")
     words = query.split()
     if len(words) > WORD_LIMIT:
-        raise ValueError(f"Query is too long. Please limit to {WORD_LIMIT} words or less.")
+        raise ValueError(f"Query is too long. Please limit to {
+                         WORD_LIMIT} words or less.")
 
     return single_word(transcript, query) if len(words) == 1 else multi_word(transcript, words)
 
@@ -365,7 +367,7 @@ def mark_word(sentence: str, word: str) -> str:
     """
     Takes every instance of word within a sentence and wraps it in <mark> tags.
     This algorithm will also ignore cases.
-    
+
     Args:
         sentence (str): The sentence
         word (str): The word
@@ -442,7 +444,7 @@ def transcript_api(request: Request) -> Request:
 
     request_json = request.get_json(silent=True)
     request_args = request.args
-    
+
     data = {
         "status": "success",
         "word_limit": WORD_LIMIT,
@@ -452,7 +454,7 @@ def transcript_api(request: Request) -> Request:
     }
 
     SEARCH_PARAMS["filter_by"] = ""
-    
+
     channel_id = None
     if request_json and "channel_id" in request_json:
         channel_id = request_json["channel_id"]
@@ -467,7 +469,7 @@ def transcript_api(request: Request) -> Request:
         video_ids = request_json["video_ids"]
     elif request_args and "video_ids" in request_args:
         video_ids = request_args["video_ids"]
-    
+
     if video_ids:
         ss = io.StringIO()
         ss.write("video_id:=")
@@ -479,11 +481,10 @@ def transcript_api(request: Request) -> Request:
         url = request_json["url"]
     elif request_args and "url" in request_args:
         url = request_args["url"]
-    
 
     if url:
         data_temp = None
-        url_type = get_video_type(url) 
+        url_type = get_video_type(url)
         try:
             data_temp = process_url(url, url_type)
         except ValueError as e:
