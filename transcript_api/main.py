@@ -4,6 +4,7 @@ import os
 import re
 import typesense
 import yt_dlp
+from enum import Enum
 from flask import jsonify, Request
 from google.cloud import pubsub_v1, logging
 from google.oauth2 import service_account
@@ -18,7 +19,7 @@ topic_path = None
 logger_cloud = None
 logger_console = None
 
-DEBUG = False
+DEBUG_FLAG = False
 
 LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
@@ -39,9 +40,8 @@ SEARCH_PARAMS = {
     "q": None,
     "query_by": "transcript",
     "sort_by": "upload_date:desc",
-    # "filter_by": "",
+    "filter_by": "",
     "limit": 250,
-    "limit_hits": 250,
     "highlight_start_tag": "",
     "highlight_end_tag": "",
 }
@@ -84,7 +84,7 @@ Typesense client.
 
 VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
 VALID_PLAYLIST = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=[\w\-]+)(\&index=[0-9]*)?(\&si=[\w\-]+)?$"
-VALID_CHANNEL = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/((\@[\w\-\.]{3,30}(\?si=\w+)?)|(channel\/[\w\-]+))(\/videos)?$"
+VALID_CHANNEL = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(((c\/)?[\w\-\.]+)|(\@[\w\-\.]{3,30})|(channel\/[\w\-]+))(\?si=[\w\-]+)?(\/videos|\/featured)?$"
 
 YDL_OPS = {
     "quiet": True,
@@ -99,6 +99,14 @@ YDL = yt_dlp.YoutubeDL(YDL_OPS)
 """
 Youtube-dl client.
 """
+
+
+class URLType(Enum):
+    """Enum for URL types."""
+
+    VIDEO = 1
+    PLAYLIST = 2
+    CHANNEL = 3
 
 
 def debug(message: str) -> None:
@@ -126,53 +134,65 @@ def debug(message: str) -> None:
         handler.setFormatter(LOG_FORMAT)
         logger_console.addHandler(handler)
 
-    if DEBUG:
+    if DEBUG_FLAG:
         # logger_cloud.log_text(message, severity="DEBUG")
         logger_console.log(DEBUG, message)
     return
 
 
-def process_url(url: str) -> List[str]:
+def get_video_type(url: str) -> URLType:
+    """Determines the type of video from the URL.
+
+    Args:
+        url (str): The URL.
+
+    Returns:
+        URLType: The type of video.
+    """
+
+    if re.search(VALID_VIDEO, url):
+        return URLType.VIDEO
+    elif re.search(VALID_PLAYLIST, url):
+        return URLType.PLAYLIST
+    elif re.search(VALID_CHANNEL, url):
+        return URLType.CHANNEL
+    else:
+        raise ValueError(f"Invalid URL: {url}")
+
+
+def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     """
     Takes a Universal Reference Link, determines if the url is a channel or a playlist and returns NUMBER most recent videos.
 
     Args:
         url (str): Universsal Reference Link
-
-    Returns:
-        List[str]: list of video urls
     """
+    debug(f"Processing URL: {url}")
 
-    is_video = re.search(VALID_VIDEO, url)
-    is_playlist = re.search(VALID_PLAYLIST, url)
-    is_channel = re.search(VALID_CHANNEL, url)
+    data = {
+        "video_ids": [],
+        "channel_id": None,
+    }
 
-    if is_video:
+    if url_type == URLType.VIDEO:
         send_url(url)
-        debug(f"Send this video to Pub/Sub: {url}")
-    elif is_playlist:
-        # ss = io.StringIO()
-        # ss.write("video_id:=[")
+    elif url_type == URLType.PLAYLIST:
+        ss = io.StringIO()
+        ss.write("[")
         for video_url in get_playlist_videos(url):
             send_url(video_url)
-            # ss.write(f"`{getID(video_url)}`,")
-            debug(f"Send this video to Pub/Sub: {video_url}")
-        # ss.write("]")
-        # SEARCH_PARAMS["filter_by"] = ss.getvalue()
-        # debug(SEARCH_PARAMS["filter_by"])
-    elif is_channel:
-        if url.endswith("/videos"):
-            url = url[:-7]
-
-        channel_id, videos = get_channel_videos(url)
-        debug(f"Channel ID: {channel_id}")
-        # SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}" 
+            ss.write(f'`{getID(video_url)}`,')
+        ss.write("]")
+        data["video_ids"] = ss.getvalue()
+        data["video_ids"] = data["video_ids"].replace(",]", "]")
+    elif url_type == URLType.CHANNEL:
+        data["channel_id"], videos = get_channel_videos(url)
         for video_url in videos:
             send_url(video_url)
-            debug(f"Send this video to Pub/Sub: {video_url}")
     else:
         raise ValueError(f"Invalid URL: {url}")
-    return
+
+    return data
 
 
 def get_playlist_videos(playlist_url: str) -> List[str]:
@@ -212,7 +232,18 @@ def getID(url: str) -> str:
     return match.group(5) if match else None
 
 
-def video_exists(video_id) -> bool:
+def video_exists(video_id: str) -> bool:
+    """Checks to see if a video exists in Firestore
+
+    Args:
+        video_id (str): The video ID
+
+    Returns:
+        bool: True if the video exists, False otherwise
+    """
+
+    debug("Checking if video exists in Firestore")
+
     global test_collection
     if not test_collection:
         cred = credentials.Certificate("credentials_firebase.json")
@@ -221,7 +252,8 @@ def video_exists(video_id) -> bool:
         test_collection = db.collection("test")
 
     document = test_collection.document(video_id).get()
-    return bool(document)
+    return document.exists
+
 
 def send_url(url: str) -> None:
     """
@@ -236,7 +268,10 @@ def send_url(url: str) -> None:
     id = getID(url)
 
     if video_exists(id):
+        debug(f"Video {id} already exists in Firestore")
         return
+
+    debug(f"Sending URL: {url}")
 
     global publisher, topic_path
     if not publisher:
@@ -291,7 +326,8 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
     for i, snip in enumerate(transcript):
         snippet = map(str.casefold, snip["matched_tokens"])
         if words[0].casefold() in snippet:
-            next_snippet = map(str.casefold, transcript[i + 1]) if i + 1 < len(transcript) else None
+            next_snippet = map(
+                str.casefold, transcript[i + 1]) if i + 1 < len(transcript) else None
             debug(f"Snippet: {snippet}")
             debug(f"Next Snippet: {next_snippet}")
             if next_snippet:
@@ -318,7 +354,8 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     debug(f"Finding indexes of {query} in transcript")
     words = query.split()
     if len(words) > WORD_LIMIT:
-        raise ValueError(f"Query is too long. Please limit to {WORD_LIMIT} words or less.")
+        raise ValueError(f"Query is too long. Please limit to {
+                         WORD_LIMIT} words or less.")
 
     return single_word(transcript, query) if len(words) == 1 else multi_word(transcript, words)
 
@@ -340,7 +377,7 @@ def mark_word(sentence: str, word: str) -> str:
     return pattern.sub(r"<mark>\g<0></mark>", sentence)
 
 
-def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
+def search(query: str) -> List[Dict[str, Any]]:
     """Searches for a query in the transcript data.
 
     Args:
@@ -350,12 +387,13 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
         Dict[str, List[Dict[str, Any]]]: The search results.
     """
     SEARCH_PARAMS["q"] = f"\"{query}\""
-    # SEARCH_PARAMS["filter_by"] = ""
+
+    debug(f"Searching for {SEARCH_PARAMS['q']} in transcripts.")
 
     response = TYPESENSE.collections["transcripts"].documents.search(
         SEARCH_PARAMS)
 
-    result = {"hits": []}
+    result = []
 
     for hit in response["hits"]:
         # get individual document featuring match
@@ -377,7 +415,7 @@ def search(query: str) -> Dict[str, List[Dict[str, Any]]]:
 
         debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
-        result["hits"].append(data)
+        result.append(data)
     return result
 
 
@@ -399,9 +437,41 @@ def transcript_api(request: Request) -> Request:
         - HTTP status code.
         - Headers for the response.
     """
+    debug(f"Transcript API called")
 
     request_json = request.get_json(silent=True)
     request_args = request.args
+
+    data = {
+        "status": "success",
+        "word_limit": WORD_LIMIT,
+        "channel_id": None,
+        "video_ids": None,
+        "hits": None,
+    }
+
+    SEARCH_PARAMS["filter_by"] = ""
+
+    channel_id = None
+    if request_json and "channel_id" in request_json:
+        channel_id = request_json["channel_id"]
+    elif request_args and "channel_id" in request_args:
+        channel_id = request_args["channel_id"]
+
+    if channel_id:
+        SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}"
+
+    video_ids = None
+    if request_json and "video_ids" in request_json:
+        video_ids = request_json["video_ids"]
+    elif request_args and "video_ids" in request_args:
+        video_ids = request_args["video_ids"]
+
+    if video_ids:
+        ss = io.StringIO()
+        ss.write("video_id:=")
+        ss.write(video_ids)
+        SEARCH_PARAMS["filter_by"] = ss.getvalue()
 
     url = None
     if request_json and "url" in request_json:
@@ -409,11 +479,15 @@ def transcript_api(request: Request) -> Request:
     elif request_args and "url" in request_args:
         url = request_args["url"]
 
-    if url != None:
+    if url:
+        data_temp = None
+        url_type = get_video_type(url)
         try:
-            process_url(url)
+            data_temp = process_url(url, url_type)
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, HEADERS)
+        data["video_ids"] = data_temp["video_ids"]
+        data["channel_id"] = data_temp["channel_id"]
 
     query = None
     if request_json and "query" in request_json:
@@ -422,14 +496,9 @@ def transcript_api(request: Request) -> Request:
         query = request_args["query"]
 
     if (query != None):
-        data = search(query)
-        return (data, 200, HEADERS)
-
-    data = {
-        "status": "success",
-        "query": bool(query),
-        "url": bool(url),
-        "word_limit": WORD_LIMIT,
-    }
+        try:
+            data["hits"] = search(query)
+        except ValueError as e:
+            return (jsonify({"error": str(e)}), 400, HEADERS)
 
     return (jsonify(data), 200, HEADERS)
