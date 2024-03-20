@@ -4,6 +4,7 @@ import os
 import re
 import typesense
 import yt_dlp
+from enum import Enum
 from flask import jsonify, Request
 from google.cloud import pubsub_v1, logging
 from google.oauth2 import service_account
@@ -139,7 +140,7 @@ def debug(message: str) -> None:
     return
 
 
-def determine_video_type(url: str) -> URLType:
+def get_video_type(url: str) -> URLType:
     """Determines the type of video from the URL.
 
     Args:
@@ -479,10 +480,10 @@ def transcript_api(request: Request) -> Request:
     elif request_args and "url" in request_args:
         url = request_args["url"]
     
-    url_type = get_url_type(url)
 
     if url:
         data_temp = None
+        url_type = get_video_type(url) 
         try:
             data_temp = process_url(url, url_type)
         except ValueError as e:
