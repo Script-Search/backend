@@ -19,7 +19,7 @@ topic_path = None
 logger_cloud = None
 logger_console = None
 
-DEBUG_FLAG = False
+DEBUG_FLAG = True
 
 LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
@@ -222,8 +222,15 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
     """
 
     channel = YDL.extract_info(channel_url, download=False)
-    video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
 
+    if not channel["entries"]:
+        raise ValueError(f"Channel {channel_url} has no videos.")
+
+    if "entries" in channel["entries"][0]:
+        video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
+    else:
+        video_urls = [entry["url"] for entry in channel["entries"]]
+    
     return channel["channel_id"], video_urls
 
 
