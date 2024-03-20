@@ -205,6 +205,7 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
     """
 
     channel = YDL.extract_info(channel_url, download=False)
+    debug(channel.keys())
     video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
 
     return channel["channel_id"], video_urls
@@ -224,6 +225,8 @@ def video_exists(video_id: str) -> bool:
     Returns:
         bool: True if the video exists, False otherwise
     """
+
+    debug("Checking if video exists in Firestore")
 
     global test_collection
     if not test_collection:
@@ -370,7 +373,7 @@ def search(query: str) -> List[Dict[str, Any]]:
     SEARCH_PARAMS["q"] = f"\"{query}\""
     SEARCH_PARAMS["filter_by"] = ""
 
-    debug(f"Searching for {SEARCH_PARAMS["q"]} in transcripts.")
+    debug(f"Searching for {SEARCH_PARAMS['q']} in transcripts.")
 
     response = TYPESENSE.collections["transcripts"].documents.search(
         SEARCH_PARAMS)
@@ -424,8 +427,6 @@ def transcript_api(request: Request) -> Request:
     request_json = request.get_json(silent=True)
     request_args = request.args
 
-    debug(request_args)
-
     url = None
     if request_json and "url" in request_json:
         url = request_json["url"]
@@ -453,7 +454,9 @@ def transcript_api(request: Request) -> Request:
     }
 
     if (query != None):
-        data["hits"] = search(query)
-        return (jsonify(data), 200, HEADERS)
+        try:
+            data["hits"] = search(query)
+        except ValueError as e:
+            return (jsonify({"error": str(e)}), 400, HEADERS)
 
     return (jsonify(data), 200, HEADERS)
