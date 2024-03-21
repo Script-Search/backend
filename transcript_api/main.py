@@ -179,9 +179,9 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     elif url_type == URLType.PLAYLIST:
         ss = io.StringIO()
         ss.write("[")
-        for video_url in get_playlist_videos(url):
+        for video_url, video_id in get_playlist_videos(url):
             send_url(video_url)
-            ss.write(f'`{getID(video_url)}`,')
+            ss.write(f'`{video_id}`,')
         ss.write("]")
         data["video_ids"] = ss.getvalue()
         data["video_ids"] = data["video_ids"].replace(",]", "]")
@@ -206,7 +206,7 @@ def get_playlist_videos(playlist_url: str) -> List[str]:
     """
 
     playlist = YDL.extract_info(playlist_url, download=False)
-    video_urls = [entry["url"] for entry in playlist["entries"]]
+    video_urls = [(entry["url"], entry["id"]) for entry in playlist["entries"]]
 
     return video_urls
 
