@@ -6,7 +6,7 @@ import typesense
 import yt_dlp
 from enum import Enum
 from flask import jsonify, Request
-from google.cloud import pubsub_v1, logging
+from google.cloud import pubsub_v1
 from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
 from logging import DEBUG, getLogger, StreamHandler, Formatter
@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Tuple
 test_collection = None
 publisher = None
 topic_path = None
-logger_cloud = None
 logger_console = None
 
 DEBUG_FLAG = True
@@ -24,8 +23,8 @@ DEBUG_FLAG = True
 LOG_FORMAT = Formatter("%(asctime)s %(message)s")
 
 HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,PATCH,UPDATE,FETCH,DELETE',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,UPDATE,FETCH,DELETE",
 }
 """
 API headers to return with the data.
@@ -119,13 +118,7 @@ def debug(message: str) -> None:
         None
     """
 
-    global logger_cloud, logger_console
-
-    if not logger_cloud:
-        cred = service_account.Credentials.from_service_account_file(
-            "credentials_pub_sub.json")
-        client = logging.Client(credentials=cred)
-        logger_cloud = client.logger("scriptsearch")
+    global logger_console
 
     if not logger_console:
         logger_console = getLogger("scriptsearch")
@@ -135,7 +128,6 @@ def debug(message: str) -> None:
         logger_console.addHandler(handler)
 
     if DEBUG_FLAG:
-        # logger_cloud.log_text(message, severity="DEBUG")
         logger_console.log(DEBUG, message)
     return
 
