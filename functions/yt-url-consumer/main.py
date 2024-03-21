@@ -1,8 +1,8 @@
 import base64
 import time
 import functions_framework
-import glob
-import os
+import requests
+import io
 import yt_dlp
 
 from firebase_admin import credentials, firestore, initialize_app
@@ -22,9 +22,7 @@ YDL_OPTS = {
     "writeautomaticsub": True,
     "subtitleslangs": ["en"],  # TODO: Handle other languages (en-.*)
     "subtitlesformat": "ttml",
-    "outtmpl": {
-        "default": DELIMITER.join(["%(id)s", "%(channel_id)s", "%(uploader)s", "%(duration)s", "%(upload_date)s", "%(title)s"])
-    },
+    "extractor_args": {'youtube': {'player_skip': ['webpage'], 'player_client': ['web']}},
     "quiet": True, 
 }
 """
@@ -62,28 +60,36 @@ def parse_timestamp(timestamp: str) -> int:
     return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
 
 
-def parse_ttml(ttml_file_name: str) -> Tuple[List[str], List[int]]:
-    """Parse the ttml file into a list of subtitles and a list of timestamps
+def parse_ttml(ttml_url: str) -> Tuple[List[str], List[int]]:
+    """Make a request to the ttml_url to download the subtitles and parse it
 
     Args:
-        ttml_file_name (str): The name of the ttml file to parse
+        ttml_url (str): The url of the ttml file
 
     Returns:
         Tuple[List[str], List[int]]: A tuple containing the list of subtitles and the list of timestamps
     """
-    
+
     subtitles = []
     timestamps = []
+    
+    r = requests.get(ttml_url)
+    xml_like_obj = io.BytesIO(r.content)
 
-    with open(ttml_file_name, "rb") as f:
-        # Stream processing to not load entire XML tree at once
-        for _, element in etree.iterparse(f, events=('end', )):
-            if is_valid_subtitle(element):
-                text = element.text.strip()
-                begin = element.attrib['begin']
-                subtitles.append(text)
-                # TODO: convert begin to seconds
-                timestamps.append(parse_timestamp(begin))
+    # Stream processing to not load entire XML tree at once
+    for _, element in etree.iterparse(xml_like_obj, events=('end', )):
+        if is_valid_subtitle(element):
+            text = element.text.strip()
+            begin = element.attrib['begin']
+            subtitles.append(text)
+            timestamps.append(parse_timestamp(begin)) # TODO: convert begin to seconds
+
+        # Clear element to release memory, can help w/ mem usage
+        element.clear()
+
+        # # Clear parent element to release memory, can help w/ mem usage
+        # while element.getprevious() is not None:
+        #     del element.getparent()[0]
 
     return subtitles, timestamps
 
@@ -100,11 +106,11 @@ def initialize_firestore() -> None:
         test_collection = db.collection("test")
 
 
-def insert_transcript(ttml_file_name: str) -> bool:
+def insert_transcript(info_json: dict) -> bool:
     """Inserts the transcript data into the firestore database
 
     Args:
-        ttml_file_name (str): The name of the ttml file to insert
+        info_json (dict): Json converted to dictionary about video's information
 
     Returns:
         bool: True if successful, False otherwise
@@ -113,16 +119,21 @@ def insert_transcript(ttml_file_name: str) -> bool:
     try:
         initialize_firestore()
 
-        # TODO: Handle potential error where there isn't exactly 1 ttml file
-        video_id, channel_id, channel_name, duration, upload_date, title = ttml_file_name.split(
-            DELIMITER)
+        video_id = info_json["id"]
+        channel_id = info_json["channel_id"]
+        channel_name = info_json["channel"]
+        duration = info_json["duration"]
+        upload_date = int(info_json["upload_date"])
+        title = info_json["title"]
 
-        # Convert to the right data format (according to wiki)
-        duration = int(duration)
-        title = title.rstrip(".en.ttml")
         upload_date = int(upload_date)
 
-        parsed_transcript, timestamps = parse_ttml(ttml_file_name)
+        ttml_url = info_json.get("subtitle_url")
+
+        if not ttml_url:
+            raise Exception("No ttml_url from given video.")
+
+        parsed_transcript, timestamps = parse_ttml(ttml_url)
 
         doc_ref = test_collection.document(video_id)
         doc_ref.set({
@@ -161,23 +172,8 @@ def transcript_downloader(cloud_event: functions_framework.CloudEvent) -> None:
         print("watch not in URL")
         return 400
 
-    YDL.download(URL)
+    info = YDL.extract_info(URL, download=False)
+    print(info)
+    insert_transcript(info)
 
-    # '''
-    # TODO: Find a way to keep the info in memory instead of writing locally
-    #         - Avoids unnecessary IO operation
-    #         - In case of multiple function calls this avoids annoying edge cases
-    # '''
-    ttml_files = glob.glob("*.ttml")
-    # There could be more if function called for multiple different URLs
-    ttml_file_name = ttml_files[0] if len(ttml_files) == 1 else None
-
-    if not ttml_file_name:
-        print("No ttml files found")
-        return 400
-
-    insert_transcript(ttml_file_name)
-
-    # Cleanup the ttml file to prepare the function for another URL; prevent memory increase
-    os.remove(ttml_file_name)
     print(f"Elapsed Time: {time.time() - startTime}")
