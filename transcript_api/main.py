@@ -10,6 +10,7 @@ from google.cloud import pubsub_v1
 from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
 from logging import DEBUG, getLogger, StreamHandler, Formatter
+from time import perf_counter
 from typing import Any, Dict, List, Tuple
 
 
@@ -219,10 +220,11 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
         raise ValueError(f"Channel {channel_url} has no videos.")
 
     if "entries" in channel["entries"][0]:
-        video_urls = [entry["url"] for entry in channel["entries"][0]["entries"]]
+        video_urls = [entry["url"]
+                      for entry in channel["entries"][0]["entries"]]
     else:
         video_urls = [entry["url"] for entry in channel["entries"]]
-    
+
     return channel["channel_id"], video_urls
 
 
@@ -302,7 +304,8 @@ def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     indexes = []
     for i, snippet in enumerate(transcript):
-        if query.casefold() in map(str.casefold, snippet["matched_tokens"]):
+        casefolded = [word.casefold() for word in snippet["matched_tokens"]]
+        if query in casefolded:
             debug(f"Snippet: {snippet}")
 
             indexes.append(i)
@@ -323,10 +326,10 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
 
     indexes = []
     for i, snip in enumerate(transcript):
-        snippet = map(str.casefold, snip["matched_tokens"])
-        if words[0].casefold() in snippet:
-            next_snippet = map(
-                str.casefold, transcript[i + 1]) if i + 1 < len(transcript) else None
+        snippet = [word.casefold() for word in snip["matched_tokens"]]
+        if words[0] in snippet:
+            next_snippet = [word.casefold() for word in transcript[i + 1]
+                            ["matched_tokens"]] if i + 1 < len(transcript) else None
             debug(f"Snippet: {snippet}")
             debug(f"Next Snippet: {next_snippet}")
             if next_snippet:
@@ -353,9 +356,12 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     debug(f"Finding indexes of {query} in transcript")
     words = query.split()
     if len(words) > WORD_LIMIT:
-        raise ValueError(f"Query is too long. Please limit to {WORD_LIMIT} words or less.")
+        raise ValueError(f"""Query is too long. Please limit to
+                         {WORD_LIMIT} words or less.""")
 
-    return single_word(transcript, query) if len(words) == 1 else multi_word(transcript, words)
+    words = [word.casefold() for word in words]
+
+    return single_word(transcript, query.casefold()) if len(words) == 1 else multi_word(transcript, words)
 
 
 def mark_word(sentence: str, word: str) -> str:
@@ -407,9 +413,12 @@ def search(query: str) -> List[Dict[str, Any]]:
         }
 
         # iterate through all matches within document
-        for index in find_indexes(hit["highlight"]["transcript"], SEARCH_PARAMS["q"][1:-1]):
+        query_no_quotes = SEARCH_PARAMS["q"][1:-1]
+        for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
+            marked_snippet = mark_word(
+                document["transcript"][index], query_no_quotes)
             data["matches"].append(
-                {"snippet": mark_word(document["transcript"][index], SEARCH_PARAMS["q"][1:-1]), "timestamp": document["timestamps"][index]})
+                {"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
 
         debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
@@ -435,6 +444,8 @@ def transcript_api(request: Request) -> Request:
         - HTTP status code.
         - Headers for the response.
     """
+
+    start = perf_counter()
     debug(f"Transcript API called")
 
     request_json = request.get_json(silent=True)
@@ -443,6 +454,7 @@ def transcript_api(request: Request) -> Request:
     data = {
         "status": "success",
         "word_limit": WORD_LIMIT,
+        "time": None,
         "channel_id": None,
         "video_ids": None,
         "hits": None,
@@ -498,5 +510,8 @@ def transcript_api(request: Request) -> Request:
             data["hits"] = search(query)
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, HEADERS)
+    end = perf_counter()
+    data["time"] = end - start
+    debug(f"Transcript API finished in {data['time']} seconds")
 
     return (jsonify(data), 200, HEADERS)
