@@ -22,6 +22,7 @@ YDL_OPTS = {
     "writeautomaticsub": True,
     "subtitleslangs": ["en"],  # TODO: Handle other languages (en-.*)
     "subtitlesformat": "ttml",
+    "extractor_args": {'youtube': {'player_skip': ['webpage'], 'player_client': ['web']}},
     "quiet": True, 
 }
 """
