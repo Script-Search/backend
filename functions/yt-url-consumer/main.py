@@ -1,20 +1,16 @@
 import base64
 import time
 import functions_framework
-import requests
 import io
 import yt_dlp
 
+from urllib3 import PoolManager
 from firebase_admin import credentials, firestore, initialize_app
 from lxml import etree
 from typing import Tuple, List
 
 test_collection = None
-
-DELIMITER = "$#$"
-"""
-Delimiter used to separate the different fields in the output file name
-"""
+req_pool = None
 
 YDL_OPTS = {
     "skip_download": True,
@@ -60,11 +56,11 @@ def parse_timestamp(timestamp: str) -> int:
     return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
 
 
-def parse_ttml(ttml_url: str) -> Tuple[List[str], List[int]]:
+def parse_ttml(response_data: str) -> Tuple[List[str], List[int]]:
     """Make a request to the ttml_url to download the subtitles and parse it
 
     Args:
-        ttml_url (str): The url of the ttml file
+        response_data (str): Byte string of the url content (ttml)
 
     Returns:
         Tuple[List[str], List[int]]: A tuple containing the list of subtitles and the list of timestamps
@@ -73,8 +69,7 @@ def parse_ttml(ttml_url: str) -> Tuple[List[str], List[int]]:
     subtitles = []
     timestamps = []
     
-    r = requests.get(ttml_url)
-    xml_like_obj = io.BytesIO(r.content)
+    xml_like_obj = io.BytesIO(response_data)
 
     # Stream processing to not load entire XML tree at once
     for _, element in etree.iterparse(xml_like_obj, events=('end', )):
@@ -105,6 +100,13 @@ def initialize_firestore() -> None:
         db = firestore.client()
         test_collection = db.collection("test")
 
+def initialize_req_pool() -> None:
+    """Uses lazy-loading to initialize the requests pool
+    """
+
+    global req_pool
+    if req_pool == None:
+        req_pool = PoolManager()
 
 def insert_transcript(info_json: dict) -> bool:
     """Inserts the transcript data into the firestore database
@@ -117,7 +119,8 @@ def insert_transcript(info_json: dict) -> bool:
     """
 
     try:
-        initialize_firestore()
+        initialize_req_pool()
+        initialize_firestore() # TODO: Make this asynchronous somehow...
 
         video_id = info_json["id"]
         channel_id = info_json["channel_id"]
@@ -132,8 +135,13 @@ def insert_transcript(info_json: dict) -> bool:
 
         if not ttml_url:
             raise Exception("No ttml_url from given video.")
+        
+        response = req_pool.request("GET", ttml_url)
 
-        parsed_transcript, timestamps = parse_ttml(ttml_url)
+        if response.status != 200:
+            raise Exception(f"Unable to fetch ttml_url, {response.status} code.")
+
+        parsed_transcript, timestamps = parse_ttml(response.data)
 
         doc_ref = test_collection.document(video_id)
         doc_ref.set({
