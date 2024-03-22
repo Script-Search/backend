@@ -4,21 +4,21 @@ steps:
   args:
   - '-c'
   - |
-    echo "$$CREDENTIALS_FIREBASE_JSON" > credentials_firebase.json &&
+    echo "$$CREDENTIALS_JSON" > credentials_firebase.json &&
     echo "$$CREDENTIALS_PUBSUB_JSON" > credentials_pub_sub.json &&
     gcloud functions deploy transcript-api \
       --entry-point=transcript_api \
       --runtime=python39 \
       --region=us-central1 \
       --gen2
-  secretEnv: ['CREDENTIALS_FIREBASE_JSON', 'CREDENTIALS_PUBSUB_JSON']
+  secretEnv: ['CREDENTIALS_JSON', 'CREDENTIALS_PUBSUB_JSON']
   id: "deploy-cloudfunc-transcript-api"
   dir: transcript_api
 options:
   logging: CLOUD_LOGGING_ONLY
 availableSecrets:
   secretManager:
-  - versionName: projects/$PROJECT_ID/secrets/credentials_firebase_json/versions/latest
-    env: 'CREDENTIALS_FIREBASE_JSON'
+  - versionName: projects/$PROJECT_ID/secrets/credentials_json/versions/latest
+    env: 'CREDENTIALS_JSON'
   - versionName: projects/$PROJECT_ID/secrets/credentials_pub_sub_json/versions/latest
     env: 'CREDENTIALS_PUBSUB_JSON'
