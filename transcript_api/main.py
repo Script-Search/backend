@@ -5,7 +5,7 @@ It processes incoming requests and sends them to the appropriate functions.
 
 # Standard Library Imports
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from enum import Enum
 from io import StringIO
 from logging import DEBUG, getLogger, StreamHandler, Formatter
@@ -177,25 +177,23 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
         send_url(url)
     elif url_type == URLType.PLAYLIST:
         video_urls, video_ids = get_playlist_videos(url)
+
+        # Prepare video_ids for filtering
         ss = StringIO()
         ss.write("[")
         for video_id in video_ids:
             ss.write(f'`{video_id}`,')
         ss.write("]")
-        
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(send_url, video_url) for video_url in video_urls]
-            for future in as_completed(futures):
-                future.result()
-
         data["video_ids"] = ss.getvalue()
         data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
+        
+        with ProcessPoolExecutor() as executor:
+            futures = executor.map(send_url, video_urls)
+
     elif url_type == URLType.CHANNEL:
         data["channel_id"], videos = get_channel_videos(url)
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(send_url, video_url) for video_url in videos]
-            for future in as_completed(futures):
-                future.result()
+        with ProcessPoolExecutor as executor:
+            futures = executor.map(send_url, videos)
     else:
         raise ValueError(f"Invalid URL: {url}")
 
