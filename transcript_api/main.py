@@ -1,23 +1,31 @@
-import functions_framework
+"""
+This script is the main entry point for the Cloud Function.
+It processes incoming requests and sends them to the appropriate functions.
+"""
+
+# Standard Library Imports
 import io
 import os
 import re
-import typesense
-import yt_dlp
 from enum import Enum
-from flask import jsonify, Request
-from google.cloud import pubsub_v1
-from google.oauth2 import service_account
-from firebase_admin import credentials, firestore, initialize_app
 from logging import DEBUG, getLogger, StreamHandler, Formatter
 from time import perf_counter
 from typing import Any, Dict, List, Tuple
 
+# Third-Party Imports
+import functions_framework
+import typesense
+import yt_dlp
+from flask import jsonify, Request
+from google.cloud import pubsub_v1
+from google.oauth2 import service_account
+from firebase_admin import credentials, firestore, initialize_app
 
-test_collection = None
-publisher = None
-topic_path = None
-logger_console = None
+
+TEST_COLLECTION = None
+PUBLISHER = None
+TOPIC_PATH = None
+LOGGER_CONSOLE = None
 
 DEBUG_FLAG = True
 
@@ -80,9 +88,31 @@ TYPESENSE = typesense.Client({
 Typesense client.
 """
 
-VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
-VALID_PLAYLIST = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=[\w\-]+)(\&index=[0-9]*)?(\&si=[\w\-]+)?$"
-VALID_CHANNEL = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(((c\/)?[\w\-\.]+)|(\@[\w\-\.]{3,30})|(channel\/[\w\-]+))(\?si=[\w\-]+)?(\/videos|\/featured)?$"
+VALID_VIDEO = r"""
+    ^((?:https?:)?\/\/)?
+    ((?:www|m)\.)?
+    ((?:youtube\.com|youtu.be))
+    (\/(?:[\w\-]+\?v=|embed\/|v\/)?)
+    (?![playlist|channel])
+    ([\w\-]+)(\S+)?$
+    """
+VALID_PLAYLIST = r"""
+    ^((?:https?:)?\/\/)?
+    ((?:www|m)\.)?
+    (youtube\.com)\/
+    (.*)[\&|\?]
+    (list=[\w\-]+)
+    (\&index=[0-9]*)?
+    (\&si=[\w\-]+)?$
+    """
+VALID_CHANNEL = r"""
+    ^((?:https?:)?\/\/)?
+    ((?:www|m)\.)?
+    (youtube\.com)\/
+    (((c\/)?[\w\-\.]+)|(\@[\w\-\.]{3,30})|(channel\/[\w\-]+))
+    (\?si=[\w\-]+)?
+    (\/videos|\/featured)?$
+    """
 
 YDL_OPS = {
     "quiet": True,
@@ -117,18 +147,17 @@ def debug(message: str) -> None:
         None
     """
 
-    global logger_console
+    global LOGGER_CONSOLE
 
-    if not logger_console:
-        logger_console = getLogger("scriptsearch")
-        logger_console.setLevel(DEBUG)
+    if not LOGGER_CONSOLE:
+        LOGGER_CONSOLE = getLogger("scriptsearch")
+        LOGGER_CONSOLE.setLevel(DEBUG)
         handler = StreamHandler()
         handler.setFormatter(Formatter("%(asctime)s %(message)s"))
-        logger_console.addHandler(handler)
+        LOGGER_CONSOLE.addHandler(handler)
 
     if DEBUG_FLAG:
-        logger_console.log(DEBUG, message)
-    return
+        LOGGER_CONSOLE.log(DEBUG, message)
 
 
 def get_video_type(url: str) -> URLType:
@@ -143,17 +172,18 @@ def get_video_type(url: str) -> URLType:
 
     if re.search(VALID_VIDEO, url):
         return URLType.VIDEO
-    elif re.search(VALID_PLAYLIST, url):
+    if re.search(VALID_PLAYLIST, url):
         return URLType.PLAYLIST
-    elif re.search(VALID_CHANNEL, url):
+    if re.search(VALID_CHANNEL, url):
         return URLType.CHANNEL
-    else:
-        raise ValueError(f"Invalid URL: {url}")
+    raise ValueError(f"Invalid URL: {url}")
 
 
 def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     """
-    Takes a Universal Reference Link, determines if the url is a channel or a playlist and returns NUMBER most recent videos.
+    Takes a Universal Reference Link, 
+    determines if the url is a channel or a playlist, 
+    and returns 250 most recent videos.
 
     Args:
         url (str): Universsal Reference Link
@@ -226,7 +256,7 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
     return channel["channel_id"], video_urls
 
 
-def getID(url: str) -> str:
+def get_id(url: str) -> str:
     """Get the video ID from a URL.
 
     Args:
@@ -251,14 +281,14 @@ def video_exists(video_id: str) -> bool:
 
     debug("Checking if video exists in Firestore")
 
-    global test_collection
-    if not test_collection:
+    global TEST_COLLECTION
+    if not TEST_COLLECTION:
         cred = credentials.Certificate("credentials_firebase.json")
         initialize_app(cred)
         db = firestore.client()
-        test_collection = db.collection("test")
+        TEST_COLLECTION = db.collection("test")
 
-    document = test_collection.document(video_id).get()
+    document = TEST_COLLECTION.document(video_id).get()
     return document.exists
 
 
@@ -272,26 +302,26 @@ def send_url(url: str) -> None:
     Returns:
         None
     """
-    id = getID(url)
+    video_id = get_id(url)
 
-    if video_exists(id):
-        debug(f"Video {id} already exists in Firestore")
+    if video_exists(video_id):
+        debug(f"Video {video_id} already exists in Firestore")
         return
 
     debug(f"Sending URL: {url}")
 
-    global publisher, topic_path
-    if not publisher:
+    global PUBLISHER, TOPIC_PATH
+    if not PUBLISHER:
         cred = service_account.Credentials.from_service_account_file(
             "credentials_pub_sub.json")
-        publisher = pubsub_v1.PublisherClient(credentials=cred)
-        topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
+        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred)
+        TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "YoutubeURLs")
     data = url.encode("utf-8")
 
-    future = publisher.publish(topic_path, data=data)
+    future = PUBLISHER.publish(TOPIC_PATH, data=data)
     future.result()
 
-    debug(f"Published message to {topic_path} with data {data}")
+    debug(f"Published message to {TOPIC_PATH} with data {data}")
 
     return
 
@@ -299,7 +329,7 @@ def send_url(url: str) -> None:
 def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     """
     Finds the indexes of the query in the transcript
-
+        topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
     Args:
         transcript (List[Dict[str, Any]]): The transcript data
         query (str): The query
@@ -367,7 +397,9 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     words = [word.casefold() for word in words]
 
-    return single_word(transcript, query.casefold()) if len(words) == 1 else multi_word(transcript, words)
+    return single_word(transcript, query.casefold()) 
+            if len(words) == 1
+            else multi_word(transcript, words)
 
 
 def mark_word(sentence: str, word: str) -> str:
@@ -449,7 +481,7 @@ def transcript_api(request: Request) -> Request:
     """
 
     start = perf_counter()
-    debug(f"Transcript API called")
+    debug("Transcript API called")
 
     request_json = request.get_json(silent=True)
     request_args = request.args
@@ -508,7 +540,7 @@ def transcript_api(request: Request) -> Request:
     elif request_args and "query" in request_args:
         query = request_args["query"]
 
-    if (query != None):
+    if query:
         try:
             data["hits"] = search(query)
         except ValueError as e:
