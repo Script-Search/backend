@@ -47,7 +47,7 @@ SEARCH_PARAMS = {
 TypeSense search parameters.
 """
 
-LIMIT = 10
+LIMIT = 50
 """
 The maximum number of videos to process in a playlist or channel.
 """
@@ -123,7 +123,7 @@ def debug(message: str) -> None:
         logger_console = getLogger("scriptsearch")
         logger_console.setLevel(DEBUG)
         handler = StreamHandler()
-        handler.setFormatter(Formatter("%(asctime)s %(message)s")
+        handler.setFormatter(Formatter("%(asctime)s %(message)s"))
         logger_console.addHandler(handler)
 
     if DEBUG_FLAG:
@@ -227,8 +227,16 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
 
 
 def getID(url: str) -> str:
-    match = re.match(VALID_VIDEO, url)
-    return match.group(5) if match else None
+    """Get the video ID from a URL.
+
+    Args:
+        url (str): The URL
+
+    Returns:
+        str: The video ID
+    """
+    info = YDL.extract_info(url, download=False)
+    return info["id"]
 
 
 def video_exists(video_id: str) -> bool:
@@ -398,10 +406,8 @@ def search(query: str) -> List[Dict[str, Any]]:
     result = []
 
     for hit in response["hits"]:
-        # get individual document featuring match
         document = hit["document"]
 
-        # More or less metadata as required
         data = {
             "video_id": document["id"],
             "title": document["title"],
@@ -410,7 +416,6 @@ def search(query: str) -> List[Dict[str, Any]]:
             "matches": []
         }
 
-        # iterate through all matches within document
         query_no_quotes = SEARCH_PARAMS["q"][1:-1]
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
             marked_snippet = mark_word(
