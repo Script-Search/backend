@@ -21,8 +21,6 @@ logger_console = None
 
 DEBUG_FLAG = True
 
-LOG_FORMAT = Formatter("%(asctime)s %(message)s")
-
 HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PATCH,UPDATE,FETCH,DELETE",
@@ -125,7 +123,7 @@ def debug(message: str) -> None:
         logger_console = getLogger("scriptsearch")
         logger_console.setLevel(DEBUG)
         handler = StreamHandler()
-        handler.setFormatter(LOG_FORMAT)
+        handler.setFormatter(Formatter("%(asctime)s %(message)s")
         logger_console.addHandler(handler)
 
     if DEBUG_FLAG:
