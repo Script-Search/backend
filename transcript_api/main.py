@@ -123,7 +123,7 @@ def debug(message: str) -> None:
         logger_console = getLogger("scriptsearch")
         logger_console.setLevel(DEBUG)
         handler = StreamHandler()
-        handler.setFormatter(Formatter("%(asctime)s %(message)s")
+        handler.setFormatter(Formatter("%(asctime)s %(message)s"))
         logger_console.addHandler(handler)
 
     if DEBUG_FLAG:
