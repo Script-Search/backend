@@ -272,11 +272,11 @@ def send_url(url: str) -> None:
     Returns:
         None
     """
-    id = getID(url)
+    # id = getID(url)
 
-    if video_exists(id):
-        debug(f"Video {id} already exists in Firestore")
-        return
+    # if video_exists(id):
+    #     debug(f"Video {id} already exists in Firestore")
+    #     return
 
     debug(f"Sending URL: {url}")
 
