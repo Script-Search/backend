@@ -33,6 +33,7 @@ DEBUG_FLAG = True
 HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PATCH,UPDATE,FETCH,DELETE",
+    "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
 }
 """
 API headers to return with the data.
