@@ -5,6 +5,7 @@ It processes incoming requests and sends them to the appropriate functions.
 
 # Standard Library Imports
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 from io import StringIO
 from logging import DEBUG, getLogger, StreamHandler, Formatter
@@ -175,18 +176,26 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     if url_type == URLType.VIDEO:
         send_url(url)
     elif url_type == URLType.PLAYLIST:
+        video_urls, video_ids = get_playlist_videos(url)
         ss = StringIO()
         ss.write("[")
-        for video_url, video_id in get_playlist_videos(url):
-            send_url(video_url)
+        for video_id in video_ids:
             ss.write(f'`{video_id}`,')
         ss.write("]")
+        
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(send_url, video_url) for video_url in video_urls]
+            for future in as_completed(futures):
+                future.result()
+
         data["video_ids"] = ss.getvalue()
         data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
     elif url_type == URLType.CHANNEL:
         data["channel_id"], videos = get_channel_videos(url)
-        for video_url in videos:
-            send_url(video_url)
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(send_url, video_url) for video_url in videos]
+            for future in as_completed(futures):
+                future.result()
     else:
         raise ValueError(f"Invalid URL: {url}")
 
@@ -204,9 +213,13 @@ def get_playlist_videos(playlist_url: str) -> List[str]:
     """
 
     playlist = YDL.extract_info(playlist_url, download=False)
-    video_urls = [(entry["url"], entry["id"]) for entry in playlist["entries"]]
+    video_urls = []
+    video_ids = []
+    for entry in playlist["entries"]:
+        video_urls.append(entry["url"])
+        video_ids.append(entry["id"])
 
-    return video_urls
+    return video_urls, video_ids
 
 
 def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
@@ -256,7 +269,7 @@ def video_exists(video_id: str) -> bool:
         bool: True if the video exists, False otherwise
     """
 
-    debug("Checking if video exists in Firestore")
+    debug(f"Checking if {video_id} exists in Firestore")
 
     global TEST_COLLECTION # pylint: disable=W0603
     if not TEST_COLLECTION:
