@@ -147,8 +147,7 @@ def debug(message: str) -> None:
         None
     """
 
-    global LOGGER_CONSOLE
-
+    global LOGGER_CONSOLE # pylint: disable=W0603
     if not LOGGER_CONSOLE:
         LOGGER_CONSOLE = getLogger("scriptsearch")
         LOGGER_CONSOLE.setLevel(DEBUG)
@@ -205,7 +204,7 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
             ss.write(f'`{video_id}`,')
         ss.write("]")
         data["video_ids"] = ss.getvalue()
-        data["video_ids"] = data["video_ids"].replace(",]", "]")
+        data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
     elif url_type == URLType.CHANNEL:
         data["channel_id"], videos = get_channel_videos(url)
         for video_url in videos:
@@ -281,7 +280,7 @@ def video_exists(video_id: str) -> bool:
 
     debug("Checking if video exists in Firestore")
 
-    global TEST_COLLECTION
+    global TEST_COLLECTION # pylint: disable=W0603
     if not TEST_COLLECTION:
         cred = credentials.Certificate("credentials_firebase.json")
         initialize_app(cred)
@@ -310,7 +309,7 @@ def send_url(url: str) -> None:
 
     debug(f"Sending URL: {url}")
 
-    global PUBLISHER, TOPIC_PATH
+    global PUBLISHER, TOPIC_PATH # pylint: disable=W0603
     if not PUBLISHER:
         cred = service_account.Credentials.from_service_account_file(
             "credentials_pub_sub.json")
@@ -397,10 +396,9 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     words = [word.casefold() for word in words]
 
-    return single_word(transcript, query.casefold()) 
-            if len(words) == 1
-            else multi_word(transcript, words)
-
+    return single_word(transcript, query.casefold()) \
+        if len(words) == 1 \
+        else multi_word(transcript, words)
 
 def mark_word(sentence: str, word: str) -> str:
     """
@@ -448,7 +446,7 @@ def search(query: str) -> List[Dict[str, Any]]:
             "matches": []
         }
 
-        query_no_quotes = SEARCH_PARAMS["q"][1:-1]
+        query_no_quotes = SEARCH_PARAMS["q"][1:-1] # pylint: disable=E1136
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
             marked_snippet = mark_word(
                 document["transcript"][index], query_no_quotes)
@@ -462,7 +460,7 @@ def search(query: str) -> List[Dict[str, Any]]:
 
 
 @functions_framework.http
-def transcript_api(request: Request) -> Request:
+def transcript_api(request: Request) -> Request: # pylint: disable=R0912
     """HTTP Cloud Function for handling transcript requests.
 
     This function handles incoming HTTP requests containing transcript data.
