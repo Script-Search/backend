@@ -483,7 +483,7 @@ def transcript_api(request: Request) -> Request:
 
     if video_ids:
         ss = io.StringIO()
-        ss.write("video_id:=")
+        ss.write("video_id:")
         ss.write(video_ids)
         SEARCH_PARAMS["filter_by"] = ss.getvalue()
 
