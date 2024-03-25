@@ -495,8 +495,8 @@ def transcript_api(request: Request) -> Request:
 
     if url:
         data_temp = None
-        url_type = get_video_type(url)
         try:
+            url_type = get_video_type(url)
             data_temp = process_url(url, url_type)
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, HEADERS)
