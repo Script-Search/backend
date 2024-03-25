@@ -188,13 +188,20 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
         data["video_ids"] = ss.getvalue()
         data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
         
-        with ProcessPoolExecutor() as executor:
-            futures = executor.map(send_url, video_urls)
+        for video_url in video_urls:
+            send_url(video_url)
+
+        # with ProcessPoolExecutor() as executor:
+            # futures = executor.map(send_url, video_urls)
 
     elif url_type == URLType.CHANNEL:
         data["channel_id"], videos = get_channel_videos(url)
-        with ProcessPoolExecutor as executor:
-            futures = executor.map(send_url, videos)
+
+        for video in videos:
+            send_url(video)
+
+        # with ProcessPoolExecutor as executor:
+            # futures = executor.map(send_url, videos)
     else:
         raise ValueError(f"Invalid URL: {url}")
 
@@ -291,6 +298,7 @@ def send_url(url: str) -> None:
     Returns:
         None
     """
+    start = perf_counter()
     video_id = get_id(url)
 
     if video_exists(video_id):
@@ -310,7 +318,8 @@ def send_url(url: str) -> None:
     future = PUBLISHER.publish(TOPIC_PATH, data=data)
     future.result()
 
-    debug(f"Published message to {TOPIC_PATH} with data {data}")
+    end = perf_counter()
+    debug(f"Sent URL: {url} in {end - start} seconds")
 
     return
 
