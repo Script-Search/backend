@@ -5,6 +5,7 @@ It processes incoming requests and sends them to the appropriate functions.
 
 # Standard Library Imports
 import re
+from asyncio import Future
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from enum import Enum
 from io import StringIO
@@ -57,7 +58,7 @@ SEARCH_PARAMS = {
 TypeSense search parameters.
 """
 
-LIMIT = 50
+LIMIT = 250
 """
 The maximum number of videos to process in a playlist or channel.
 """
@@ -158,6 +159,36 @@ def get_video_type(url: str) -> URLType:
     raise ValueError(f"Invalid URL: {url}")
 
 
+def send_url(url: str, video_id: str) -> Future:
+    """
+    Sends a video url to Pub/Sub
+
+    Args:
+        url (str): Video URL
+
+    Returns:
+        None
+    """
+    # video_id = get_id(url)
+
+    if video_exists(video_id):
+        debug(f"Video {video_id} already exists in Firestore")
+        return 
+
+    debug(f"Sending URL: {url}")
+
+    global PUBLISHER, TOPIC_PATH # pylint: disable=W0603
+    if PUBLISHER is None:
+        cred = service_account.Credentials.from_service_account_file(
+            "credentials_pub_sub.json")
+        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred)
+        TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "YoutubeURLs")
+    
+    data = url.encode("utf-8")
+
+    return PUBLISHER.publish(TOPIC_PATH, data=data)
+
+
 def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     """
     Takes a Universal Reference Link, 
@@ -174,8 +205,9 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
         "channel_id": None,
     }
 
+    futures = []
     if url_type == URLType.VIDEO:
-        send_url(url)
+        send_url(url, get_id(url))
     elif url_type == URLType.PLAYLIST:
         video_urls, video_ids = get_playlist_videos(url)
 
@@ -188,8 +220,8 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
         data["video_ids"] = ss.getvalue()
         data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
         
-        for video_url in video_urls:
-            send_url(video_url)
+        for video_url, video_id in zip(video_urls, video_ids):
+            send_url(video_url, video_id)
 
         # with ProcessPoolExecutor() as executor:
             # futures = executor.map(send_url, video_urls)
@@ -197,8 +229,8 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     elif url_type == URLType.CHANNEL:
         data["channel_id"], videos = get_channel_videos(url)
 
-        for video in videos:
-            send_url(video)
+        for video_url, video_id in videos:
+            send_url(video_url, video_id)
 
         # with ProcessPoolExecutor as executor:
             # futures = executor.map(send_url, videos)
@@ -244,10 +276,10 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
         raise ValueError(f"Channel {channel_url} has no videos.")
 
     if "entries" in channel["entries"][0]:
-        video_urls = [entry["url"]
+        video_urls = [(entry["url"], entry["id"])
                       for entry in channel["entries"][0]["entries"]]
     else:
-        video_urls = [entry["url"] for entry in channel["entries"]]
+        video_urls = [(entry["url"], entry["id"]) for entry in channel["entries"]]
 
     return channel["channel_id"], video_urls
 
@@ -274,7 +306,6 @@ def video_exists(video_id: str) -> bool:
     Returns:
         bool: True if the video exists, False otherwise
     """
-
     debug(f"Checking if {video_id} exists in Firestore")
 
     global TEST_COLLECTION # pylint: disable=W0603
@@ -284,44 +315,9 @@ def video_exists(video_id: str) -> bool:
         db = firestore.client()
         TEST_COLLECTION = db.collection("test")
 
-    document = TEST_COLLECTION.document(video_id).get()
-    return document.exists
+    document = TEST_COLLECTION.where("video_id", "==", video_id).limit(1).get()
 
-
-def send_url(url: str) -> None:
-    """
-    Sends a video url to Pub/Sub
-
-    Args:
-        url (str): Video URL
-
-    Returns:
-        None
-    """
-    start = perf_counter()
-    video_id = get_id(url)
-
-    if video_exists(video_id):
-        debug(f"Video {video_id} already exists in Firestore")
-        return
-
-    debug(f"Sending URL: {url}")
-
-    global PUBLISHER, TOPIC_PATH # pylint: disable=W0603
-    if not PUBLISHER:
-        cred = service_account.Credentials.from_service_account_file(
-            "credentials_pub_sub.json")
-        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred)
-        TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "YoutubeURLs")
-    data = url.encode("utf-8")
-
-    future = PUBLISHER.publish(TOPIC_PATH, data=data)
-    future.result()
-
-    end = perf_counter()
-    debug(f"Sent URL: {url} in {end - start} seconds")
-
-    return
+    return len(document) == 1
 
 
 def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
@@ -516,8 +512,8 @@ def transcript_api(request: Request) -> Request:
 
     if url:
         data_temp = None
+        url_type = get_video_type(url)
         try:
-            url_type = get_video_type(url)
             data_temp = process_url(url, url_type)
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, HEADERS)
