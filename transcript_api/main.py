@@ -68,6 +68,11 @@ WORD_LIMIT = 5
 The maximum number of words allowed in a query.
 """
 
+THREAD_LIMIT = 50
+"""
+The maximum number of threads to use.
+"""
+
 TYPESENSE_API_KEY = environ.get("TYPESENSE_API_KEY")
 """
 Typesense API key.
@@ -220,20 +225,20 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
         data["video_ids"] = ss.getvalue()
         data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
         
-        for video_url, video_id in zip(video_urls, video_ids):
-            send_url(video_url, video_id)
+        # for video_url, video_id in zip(video_urls, video_ids):
+            # futures.append(send_url(video_url, video_id))
 
-        # with ProcessPoolExecutor() as executor:
-            # futures = executor.map(send_url, video_urls)
+        with ProcessPoolExecutor(THREAD_LIMIT) as executor:
+            futures = executor.map(send_url, video_urls, video_ids)
 
     elif url_type == URLType.CHANNEL:
-        data["channel_id"], videos = get_channel_videos(url)
+        data["channel_id"], video_urls, video_ids = get_channel_videos(url)
 
-        for video_url, video_id in videos:
-            send_url(video_url, video_id)
+        # for video_url, video_id in videos:
+            # futures.append(send_url(video_url, video_id))
 
-        # with ProcessPoolExecutor as executor:
-            # futures = executor.map(send_url, videos)
+        with ProcessPoolExecutor(THREAD_LIMIT) as executor:
+            futures = executor.map(send_url, video_urls, video_ids)
     else:
         raise ValueError(f"Invalid URL: {url}")
 
@@ -275,13 +280,18 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
     if not channel["entries"]:
         raise ValueError(f"Channel {channel_url} has no videos.")
 
+    video_urls = []
+    video_ids = []
     if "entries" in channel["entries"][0]:
-        video_urls = [(entry["url"], entry["id"])
-                      for entry in channel["entries"][0]["entries"]]
+        for entry in channel["entries"][0]["entries"]:
+            video_urls.append(entry["url"])
+            video_ids.append(entry["id"])
     else:
-        video_urls = [(entry["url"], entry["id"]) for entry in channel["entries"]]
+        for entry in channel["entries"]:
+            video_urls.append(entry["url"])
+            video_ids.append(entry["id"])
 
-    return channel["channel_id"], video_urls
+    return channel["channel_id"], video_urls, video_ids
 
 
 def get_id(url: str) -> str:
@@ -315,7 +325,7 @@ def video_exists(video_id: str) -> bool:
         db = firestore.client()
         TEST_COLLECTION = db.collection("test")
 
-    document = TEST_COLLECTION.where("video_id", "==", video_id).limit(1).get()
+    document = TEST_COLLECTION.where(field_path="video_id", op_string="==", value=video_id).limit(1).get()
 
     return len(document) == 1
 
