@@ -1,23 +1,33 @@
-import functions_framework
-import io
-import os
+"""
+This script is the main entry point for the Cloud Function.
+It processes incoming requests and sends them to the appropriate functions.
+"""
+
+# Standard Library Imports
 import re
-import typesense
-import yt_dlp
+from asyncio import Future
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from enum import Enum
+from io import StringIO
+from logging import DEBUG, getLogger, StreamHandler, Formatter
+from os import environ
+from time import perf_counter
+from typing import Any, Dict, List, Tuple
+
+# Third-Party Imports
+import functions_framework
 from flask import jsonify, Request
 from google.cloud import pubsub_v1
 from google.oauth2 import service_account
 from firebase_admin import credentials, firestore, initialize_app
-from logging import DEBUG, getLogger, StreamHandler, Formatter
-from time import perf_counter
-from typing import Any, Dict, List, Tuple
+from typesense import Client
+from yt_dlp import YoutubeDL
 
 
-test_collection = None
-publisher = None
-topic_path = None
-logger_console = None
+TEST_COLLECTION = None
+PUBLISHER = None
+TOPIC_PATH = None
+LOGGER_CONSOLE = None
 
 DEBUG_FLAG = True
 
@@ -48,7 +58,7 @@ SEARCH_PARAMS = {
 TypeSense search parameters.
 """
 
-LIMIT = 50
+LIMIT = 250
 """
 The maximum number of videos to process in a playlist or channel.
 """
@@ -58,17 +68,22 @@ WORD_LIMIT = 5
 The maximum number of words allowed in a query.
 """
 
-TYPESENSE_API_KEY = os.environ.get("TYPESENSE_API_KEY")
+THREAD_LIMIT = 10
+"""
+The maximum number of threads to use.
+"""
+
+TYPESENSE_API_KEY = environ.get("TYPESENSE_API_KEY")
 """
 Typesense API key.
 """
 
-TYPESENSE_HOST = os.environ.get("TYPESENSE_HOST")
+TYPESENSE_HOST = environ.get("TYPESENSE_HOST")
 """
 Typesense host.
 """
 
-TYPESENSE = typesense.Client({
+TYPESENSE = Client({
     "nodes": [{
         "host": TYPESENSE_HOST,
         "port": 443,
@@ -94,7 +109,7 @@ YDL_OPS = {
 Youtube-dl options.
 """
 
-YDL = yt_dlp.YoutubeDL(YDL_OPS)
+YDL = YoutubeDL(YDL_OPS)
 """
 Youtube-dl client.
 """
@@ -118,18 +133,16 @@ def debug(message: str) -> None:
         None
     """
 
-    global logger_console
-
-    if not logger_console:
-        logger_console = getLogger("scriptsearch")
-        logger_console.setLevel(DEBUG)
+    global LOGGER_CONSOLE # pylint: disable=W0603
+    if not LOGGER_CONSOLE:
+        LOGGER_CONSOLE = getLogger("scriptsearch")
+        LOGGER_CONSOLE.setLevel(DEBUG)
         handler = StreamHandler()
         handler.setFormatter(Formatter("%(asctime)s %(message)s"))
-        logger_console.addHandler(handler)
+        LOGGER_CONSOLE.addHandler(handler)
 
     if DEBUG_FLAG:
-        logger_console.log(DEBUG, message)
-    return
+        LOGGER_CONSOLE.log(DEBUG, message)
 
 
 def get_video_type(url: str) -> URLType:
@@ -144,17 +157,48 @@ def get_video_type(url: str) -> URLType:
 
     if re.search(VALID_VIDEO, url):
         return URLType.VIDEO
-    elif re.search(VALID_PLAYLIST, url):
+    if re.search(VALID_PLAYLIST, url):
         return URLType.PLAYLIST
-    elif re.search(VALID_CHANNEL, url):
+    if re.search(VALID_CHANNEL, url):
         return URLType.CHANNEL
-    else:
-        raise ValueError(f"Invalid URL: {url}")
+    raise ValueError(f"Invalid URL: {url}")
+
+
+def send_url(url: str, video_id: str) -> Future:
+    """
+    Sends a video url to Pub/Sub
+
+    Args:
+        url (str): Video URL
+
+    Returns:
+        None
+    """
+    # video_id = get_id(url)
+
+    if video_exists(video_id):
+        debug(f"Video {video_id} already exists in Firestore")
+        return 
+
+    debug(f"Sending URL: {url}")
+
+    global PUBLISHER, TOPIC_PATH # pylint: disable=W0603
+    if PUBLISHER is None:
+        cred = service_account.Credentials.from_service_account_file(
+            "credentials_pub_sub.json")
+        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred)
+        TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "YoutubeURLs")
+    
+    data = url.encode("utf-8")
+
+    return PUBLISHER.publish(TOPIC_PATH, data=data)
 
 
 def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     """
-    Takes a Universal Reference Link, determines if the url is a channel or a playlist and returns NUMBER most recent videos.
+    Takes a Universal Reference Link, 
+    determines if the url is a channel or a playlist, 
+    and returns 250 most recent videos.
 
     Args:
         url (str): Universsal Reference Link
@@ -166,21 +210,35 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
         "channel_id": None,
     }
 
+    futures = []
     if url_type == URLType.VIDEO:
-        send_url(url)
+        send_url(url, get_id(url))
     elif url_type == URLType.PLAYLIST:
-        ss = io.StringIO()
+        video_urls, video_ids = get_playlist_videos(url)
+
+        # Prepare video_ids for filtering
+        ss = StringIO()
         ss.write("[")
-        for video_url, video_id in get_playlist_videos(url):
-            send_url(video_url)
+        for video_id in video_ids:
             ss.write(f'`{video_id}`,')
         ss.write("]")
         data["video_ids"] = ss.getvalue()
-        data["video_ids"] = data["video_ids"].replace(",]", "]")
+        data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
+        
+        # for video_url, video_id in zip(video_urls, video_ids):
+            # futures.append(send_url(video_url, video_id))
+
+        with ProcessPoolExecutor(THREAD_LIMIT) as executor:
+            futures = executor.map(send_url, video_urls, video_ids)
+
     elif url_type == URLType.CHANNEL:
-        data["channel_id"], videos = get_channel_videos(url)
-        for video_url in videos:
-            send_url(video_url)
+        data["channel_id"], video_urls, video_ids = get_channel_videos(url)
+
+        # for video_url, video_id in videos:
+            # futures.append(send_url(video_url, video_id))
+
+        with ProcessPoolExecutor(THREAD_LIMIT) as executor:
+            futures = executor.map(send_url, video_urls, video_ids)
     else:
         raise ValueError(f"Invalid URL: {url}")
 
@@ -198,9 +256,13 @@ def get_playlist_videos(playlist_url: str) -> List[str]:
     """
 
     playlist = YDL.extract_info(playlist_url, download=False)
-    video_urls = [(entry["url"], entry["id"]) for entry in playlist["entries"]]
+    video_urls = []
+    video_ids = []
+    for entry in playlist["entries"]:
+        video_urls.append(entry["url"])
+        video_ids.append(entry["id"])
 
-    return video_urls
+    return video_urls, video_ids
 
 
 def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
@@ -218,16 +280,21 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
     if not channel["entries"]:
         raise ValueError(f"Channel {channel_url} has no videos.")
 
+    video_urls = []
+    video_ids = []
     if "entries" in channel["entries"][0]:
-        video_urls = [entry["url"]
-                      for entry in channel["entries"][0]["entries"]]
+        for entry in channel["entries"][0]["entries"]:
+            video_urls.append(entry["url"])
+            video_ids.append(entry["id"])
     else:
-        video_urls = [entry["url"] for entry in channel["entries"]]
+        for entry in channel["entries"]:
+            video_urls.append(entry["url"])
+            video_ids.append(entry["id"])
 
-    return channel["channel_id"], video_urls
+    return channel["channel_id"], video_urls, video_ids
 
 
-def getID(url: str) -> str:
+def get_id(url: str) -> str:
     """Get the video ID from a URL.
 
     Args:
@@ -249,58 +316,24 @@ def video_exists(video_id: str) -> bool:
     Returns:
         bool: True if the video exists, False otherwise
     """
+    debug(f"Checking if {video_id} exists in Firestore")
 
-    debug("Checking if video exists in Firestore")
-
-    global test_collection
-    if not test_collection:
+    global TEST_COLLECTION # pylint: disable=W0603
+    if not TEST_COLLECTION:
         cred = credentials.Certificate("credentials_firebase.json")
         initialize_app(cred)
         db = firestore.client()
-        test_collection = db.collection("test")
+        TEST_COLLECTION = db.collection("test")
 
-    document = test_collection.document(video_id).get()
-    return document.exists
+    document = TEST_COLLECTION.where(field_path="video_id", op_string="==", value=video_id).limit(1).get()
 
-
-def send_url(url: str) -> None:
-    """
-    Sends a video url to Pub/Sub
-
-    Args:
-        url (str): Video URL
-
-    Returns:
-        None
-    """
-    # id = getID(url)
-
-    # if video_exists(id):
-    #     debug(f"Video {id} already exists in Firestore")
-    #     return
-
-    debug(f"Sending URL: {url}")
-
-    global publisher, topic_path
-    if not publisher:
-        cred = service_account.Credentials.from_service_account_file(
-            "credentials_pub_sub.json")
-        publisher = pubsub_v1.PublisherClient(credentials=cred)
-        topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
-    data = url.encode("utf-8")
-
-    future = publisher.publish(topic_path, data=data)
-    future.result()
-
-    debug(f"Published message to {topic_path} with data {data}")
-
-    return
+    return len(document) == 1
 
 
 def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     """
     Finds the indexes of the query in the transcript
-
+        topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
     Args:
         transcript (List[Dict[str, Any]]): The transcript data
         query (str): The query
@@ -368,8 +401,9 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     words = [word.casefold() for word in words]
 
-    return single_word(transcript, query.casefold()) if len(words) == 1 else multi_word(transcript, words)
-
+    return single_word(transcript, query.casefold()) \
+        if len(words) == 1 \
+        else multi_word(transcript, words)
 
 def mark_word(sentence: str, word: str) -> str:
     """
@@ -417,7 +451,7 @@ def search(query: str) -> List[Dict[str, Any]]:
             "matches": []
         }
 
-        query_no_quotes = SEARCH_PARAMS["q"][1:-1]
+        query_no_quotes = SEARCH_PARAMS["q"][1:-1] # pylint: disable=E1136
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
             marked_snippet = mark_word(
                 document["transcript"][index], query_no_quotes)
@@ -450,9 +484,8 @@ def transcript_api(request: Request) -> Request:
     """
 
     start = perf_counter()
-    debug(f"Transcript API called")
+    debug("Transcript API called")
 
-    request_json = request.get_json(silent=True)
     request_args = request.args
 
     data = {
@@ -467,18 +500,14 @@ def transcript_api(request: Request) -> Request:
     SEARCH_PARAMS["filter_by"] = ""
 
     channel_id = None
-    if request_json and "channel_id" in request_json:
-        channel_id = request_json["channel_id"]
-    elif request_args and "channel_id" in request_args:
+    if request_args and "channel_id" in request_args:
         channel_id = request_args["channel_id"]
 
     if channel_id:
         SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}"
 
     video_ids = None
-    if request_json and "video_ids" in request_json:
-        video_ids = request_json["video_ids"]
-    elif request_args and "video_ids" in request_args:
+    if request_args and "video_ids" in request_args:
         video_ids = request_args["video_ids"]
 
     if video_ids:
@@ -488,9 +517,7 @@ def transcript_api(request: Request) -> Request:
         SEARCH_PARAMS["filter_by"] = ss.getvalue()
 
     url = None
-    if request_json and "url" in request_json:
-        url = request_json["url"]
-    elif request_args and "url" in request_args:
+    if request_args and "url" in request_args:
         url = request_args["url"]
 
     if url:
@@ -504,12 +531,10 @@ def transcript_api(request: Request) -> Request:
         data["channel_id"] = data_temp["channel_id"]
 
     query = None
-    if request_json and "query" in request_json:
-        query = request_json["query"]
-    elif request_args and "query" in request_args:
+    if request_args and "query" in request_args:
         query = request_args["query"]
 
-    if (query != None):
+    if query:
         try:
             data["hits"] = search(query)
         except ValueError as e:
