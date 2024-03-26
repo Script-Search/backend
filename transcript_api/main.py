@@ -68,7 +68,7 @@ WORD_LIMIT = 5
 The maximum number of words allowed in a query.
 """
 
-THREAD_LIMIT = 50
+THREAD_LIMIT = 10
 """
 The maximum number of threads to use.
 """
@@ -522,8 +522,8 @@ def transcript_api(request: Request) -> Request:
 
     if url:
         data_temp = None
-        url_type = get_video_type(url)
         try:
+            url_type = get_video_type(url)
             data_temp = process_url(url, url_type)
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, HEADERS)
