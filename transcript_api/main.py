@@ -33,7 +33,7 @@ DEBUG_FLAG = True
 
 HEADERS = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,PATCH,UPDATE,FETCH,DELETE",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,UPDATE,FETCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
 }
 """
@@ -511,8 +511,8 @@ def transcript_api(request: Request) -> Request:
         video_ids = request_args["video_ids"]
 
     if video_ids:
-        ss = StringIO()
-        ss.write("video_id:=")
+        ss = io.StringIO()
+        ss.write("video_id:")
         ss.write(video_ids)
         SEARCH_PARAMS["filter_by"] = ss.getvalue()
 
