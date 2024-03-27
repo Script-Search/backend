@@ -68,7 +68,7 @@ WORD_LIMIT = 5
 The maximum number of words allowed in a query.
 """
 
-THREAD_LIMIT = 1
+THREAD_LIMIT = 10
 """
 The maximum number of threads to use.
 """
@@ -212,7 +212,9 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
 
     futures = []
     if url_type == URLType.VIDEO:
-        send_url(url, get_id(url))
+        video_id = get_id(url)
+        send_url(url, video_id)
+        SEARCH_PARAMS["filter_by"] = f"video_id:={video_id}"
     elif url_type == URLType.PLAYLIST:
         video_urls, video_ids = get_playlist_videos(url)
 
