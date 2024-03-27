@@ -68,7 +68,7 @@ WORD_LIMIT = 5
 The maximum number of words allowed in a query.
 """
 
-THREAD_LIMIT = 10
+THREAD_LIMIT = 2
 """
 The maximum number of threads to use.
 """
@@ -487,6 +487,7 @@ def transcript_api(request: Request) -> Request:
     debug("Transcript API called")
 
     request_json = request.get_json(silent=True)
+    request_args = request.args
 
     data = {
         "status": "success",
@@ -519,6 +520,8 @@ def transcript_api(request: Request) -> Request:
     url = None
     if request_json and "url" in request_json:
         url = request_json["url"]
+    elif request_args and "url" in request_args:
+        url = request_args["url"]
 
     if url:
         data_temp = None
