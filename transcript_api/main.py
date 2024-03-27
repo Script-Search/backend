@@ -90,7 +90,7 @@ TYPESENSE = Client({
         "protocol": "https"
     }],
     "api_key": TYPESENSE_API_KEY,
-    "connection_timeout_seconds": 2
+    "connection_timeout_seconds": 4
 })
 """
 Typesense client.
@@ -212,7 +212,9 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
 
     futures = []
     if url_type == URLType.VIDEO:
-        send_url(url, get_id(url))
+        video_id = get_id(url)
+        send_url(url, video_id)
+        SEARCH_PARAMS["filter_by"] = f"video_id:{video_id}"
     elif url_type == URLType.PLAYLIST:
         video_urls, video_ids = get_playlist_videos(url)
 
@@ -325,10 +327,8 @@ def video_exists(video_id: str) -> bool:
         db = firestore.client()
         TEST_COLLECTION = db.collection("test")
 
-    document = TEST_COLLECTION.where(field_path="video_id", op_string="==", value=video_id).limit(1).get()
-
-    return len(document) == 1
-
+    document = TEST_COLLECTION.document(video_id).get()
+    return document.exists
 
 def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     """
@@ -486,7 +486,7 @@ def transcript_api(request: Request) -> Request:
     start = perf_counter()
     debug("Transcript API called")
 
-    request_args = request.args
+    request_json = request.get_json(silent=True)
 
     data = {
         "status": "success",
@@ -500,15 +500,15 @@ def transcript_api(request: Request) -> Request:
     SEARCH_PARAMS["filter_by"] = ""
 
     channel_id = None
-    if request_args and "channel_id" in request_args:
-        channel_id = request_args["channel_id"]
+    if request_json and "channel_id" in request_json:
+        channel_id = request_json["channel_id"]
 
     if channel_id:
-        SEARCH_PARAMS["filter_by"] = f"channel_id:={channel_id}"
+        SEARCH_PARAMS["filter_by"] = f"channel_id:{channel_id}"
 
     video_ids = None
-    if request_args and "video_ids" in request_args:
-        video_ids = request_args["video_ids"]
+    if request_json and "video_ids" in request_json:
+        video_ids = request_json["video_ids"]
 
     if video_ids:
         ss = io.StringIO()
@@ -517,8 +517,8 @@ def transcript_api(request: Request) -> Request:
         SEARCH_PARAMS["filter_by"] = ss.getvalue()
 
     url = None
-    if request_args and "url" in request_args:
-        url = request_args["url"]
+    if request_json and "url" in request_json:
+        url = request_json["url"]
 
     if url:
         data_temp = None
@@ -531,8 +531,8 @@ def transcript_api(request: Request) -> Request:
         data["channel_id"] = data_temp["channel_id"]
 
     query = None
-    if request_args and "query" in request_args:
-        query = request_args["query"]
+    if request_json and "query" in request_json:
+        query = request_json["query"]
 
     if query:
         try:
