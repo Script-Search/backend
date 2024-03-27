@@ -68,7 +68,7 @@ WORD_LIMIT = 5
 The maximum number of words allowed in a query.
 """
 
-THREAD_LIMIT = 10
+THREAD_LIMIT = 1
 """
 The maximum number of threads to use.
 """
@@ -325,10 +325,8 @@ def video_exists(video_id: str) -> bool:
         db = firestore.client()
         TEST_COLLECTION = db.collection("test")
 
-    document = TEST_COLLECTION.where(field_path="video_id", op_string="==", value=video_id).limit(1).get()
-
-    return len(document) == 1
-
+    document = TEST_COLLECTION.document(video_id).get()
+    return document.exists
 
 def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     """
