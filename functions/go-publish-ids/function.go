@@ -52,7 +52,7 @@ type PubSubMessage struct {
 func initFirestore() {
 	firestoreClientLazyLoaded.Do(func() {
 		var err error
-		sa := option.WithCredentialsFile("credentials.json")
+		sa := option.WithCredentialsFile("credentials_firebase.json")
 		firestoreClient, err = firestore.NewClient(ctx, sa)
 		if err != nil {
 			log.Fatalln(err)
