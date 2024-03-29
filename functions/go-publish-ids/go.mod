@@ -1,4 +1,4 @@
-module functions/firestore-golang-id-check
+module functions.com/firestore-golang-id-check
 
 go 1.22.0
 
