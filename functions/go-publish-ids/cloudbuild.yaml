@@ -6,7 +6,7 @@ steps:
   - |
     echo "$$CREDENTIALS_JSON" > credentials_firebase.json &&
     echo "$$CREDENTIALS_PUBSUB_JSON" > credentials_pub_sub.json &&
-    gcloud functions deploy  \
+    gcloud functions deploy go-publish-ids \
       --entry-point=PubMissingIds \
       --runtime=go122 \
       --region=us-west2 \
