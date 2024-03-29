@@ -59,6 +59,7 @@ def process_url(url: str) -> Dict[str, Any]:
     video_ids = []
     if url_type == URLType.VIDEO:
         video_id = get_video(url)
+        video_ids.append(video_id)
         ss = StringIO()
         ss.write(f"[{video_id}]")
         data["video_ids"] = ss.getvalue()
