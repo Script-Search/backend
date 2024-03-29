@@ -4,411 +4,18 @@ It processes incoming requests and sends them to the appropriate functions.
 """
 
 # Standard Library Imports
-import re
-import json
 import io
-from asyncio import Future
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from enum import Enum
-from io import StringIO
-from logging import DEBUG, getLogger, StreamHandler, Formatter
-from os import environ
 from time import perf_counter
-from typing import Any, Dict, List, Tuple
 
 # Third-Party Imports
 import functions_framework
 from flask import jsonify, Request
-from google.cloud import pubsub_v1
-from google.oauth2 import service_account
-from typesense import Client
-from yt_dlp import YoutubeDL
 
-PUBLISHER = None
-TOPIC_PATH = None
-LOGGER_CONSOLE = None
-
-DEBUG_FLAG = True
-
-HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,PATCH,UPDATE,FETCH,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
-}
-"""
-API headers to return with the data.
-"""
-
-SEARCH_PARAMS = {
-    "drop_tokens_threshold": 0,
-    "typo_tokens_threshold": 0,
-    "page": 1,
-    "per_page": 250,
-    "prefix": False,
-    "q": None,
-    "query_by": "transcript",
-    "sort_by": "upload_date:desc",
-    "filter_by": "",
-    "limit": 250,
-    "highlight_start_tag": "",
-    "highlight_end_tag": "",
-}
-"""
-TypeSense search parameters.
-"""
-
-LIMIT = 250
-"""
-The maximum number of videos to process in a playlist or channel.
-"""
-
-WORD_LIMIT = 5
-"""
-The maximum number of words allowed in a query.
-"""
-
-THREAD_LIMIT = 2
-"""
-The maximum number of threads to use.
-"""
-
-TYPESENSE_API_KEY = environ.get("TYPESENSE_API_KEY")
-"""
-Typesense API key.
-"""
-
-TYPESENSE_HOST = environ.get("TYPESENSE_HOST")
-"""
-Typesense host.
-"""
-
-TYPESENSE = Client({
-    "nodes": [{
-        "host": TYPESENSE_HOST,
-        "port": 443,
-        "protocol": "https"
-    }],
-    "api_key": TYPESENSE_API_KEY,
-    "connection_timeout_seconds": 4
-})
-"""
-Typesense client.
-"""
-
-VALID_VIDEO = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
-VALID_PLAYLIST = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=[\w\-]+)(\&index=[0-9]*)?(\&si=[\w\-]+)?$"
-VALID_CHANNEL = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(((c\/)?[\w\-\.]+)|(\@[\w\-\.]{3,30})|(channel\/[\w\-]+))(\?si=[\w\-]+)?(\/videos|\/featured)?$"
-
-YDL_OPS = {
-    "quiet": True,
-    "extract_flat": True,
-    "playlist_items": f"1-{LIMIT}",
-    "extractor_args": {'youtube': {'player_skip': ['webpage'], 'player_client': ['web', 'android']}},
-    "source_address": "0.0.0.0", # we're getting ip blocked
-}
-"""
-Youtube-dl options.
-"""
-
-YDL = YoutubeDL(YDL_OPS)
-"""
-Youtube-dl client.
-"""
-
-
-class URLType(Enum):
-    """Enum for URL types."""
-
-    VIDEO = 1
-    PLAYLIST = 2
-    CHANNEL = 3
-
-
-def debug(message: str) -> None:
-    """Print a debug message.
-
-    Args:
-        message (str): The message to print.
-
-    Retu_cloudrns:
-        None
-    """
-
-    global LOGGER_CONSOLE # pylint: disable=W0603
-    if not LOGGER_CONSOLE:
-        LOGGER_CONSOLE = getLogger("scriptsearch")
-        LOGGER_CONSOLE.setLevel(DEBUG)
-        handler = StreamHandler()
-        handler.setFormatter(Formatter("%(asctime)s %(message)s"))
-        LOGGER_CONSOLE.addHandler(handler)
-
-    if DEBUG_FLAG:
-        LOGGER_CONSOLE.log(DEBUG, message)
-
-
-def get_video_type(url: str) -> URLType:
-    """Determines the type of video from the URL.
-
-    Args:
-        url (str): The URL.
-
-    Returns:
-        URLType: The type of video.
-    """
-
-    if re.search(VALID_VIDEO, url):
-        return URLType.VIDEO
-    if re.search(VALID_PLAYLIST, url):
-        return URLType.PLAYLIST
-    if re.search(VALID_CHANNEL, url):
-        return URLType.CHANNEL
-    raise ValueError(f"Invalid URL: {url}")
-
-def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
-    """
-    Takes a Universal Reference Link, 
-    determines if the url is a channel or a playlist, 
-    and returns 250 most recent videos.
-
-    Args:
-        url (str): Universsal Reference Link
-    """
-    debug(f"Processing URL: {url}")
-
-    data = {
-        "video_ids": [],
-        "channel_id": None,
-    }
-
-    video_ids = []
-    if url_type == URLType.VIDEO:
-        video_id = get_id(url)
-        video_ids.append(video_id)
-        SEARCH_PARAMS["filter_by"] = f"video_id:{video_id}"
-    elif url_type == URLType.PLAYLIST:
-        video_urls, video_ids = get_playlist_videos(url)
-
-        # Prepare video_ids for filtering
-        ss = StringIO()
-        ss.write("[")
-        for video_id in video_ids:
-            ss.write(f'`{video_id}`,')
-        ss.write("]")
-        data["video_ids"] = ss.getvalue()
-        data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
-
-    elif url_type == URLType.CHANNEL:
-        data["channel_id"], video_urls, video_ids = get_channel_videos(url)
-    else:
-        raise ValueError(f"Invalid URL: {url}")
-    
-    global PUBLISHER, TOPIC_PATH # pylint: disable=W0603
-    if PUBLISHER is None:
-        cred = service_account.Credentials.from_service_account_file(
-            "credentials_pub_sub.json")
-        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred)
-        TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "Test-Go-Url-Check")
-    
-    byteString = json.dumps(video_ids).encode("utf-8")
-    PUBLISHER.publish(TOPIC_PATH, data=byteString) # We don't really need result from this I believe
-
-    return data
-
-
-def get_playlist_videos(playlist_url: str) -> List[str]:
-    """Get the video urls from a playlist.
-
-    Args:
-        playlist_url (str): The playlist URL.
-
-    Returns:
-        List[str]: The video URLs.
-    """
-
-    playlist = YDL.extract_info(playlist_url, download=False)
-    video_urls = []
-    video_ids = []
-    for entry in playlist["entries"]:
-        video_urls.append(entry["url"])
-        video_ids.append(entry["id"])
-
-    return video_urls, video_ids
-
-
-def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
-    """Get the video urls from a channel.
-
-    Args:
-        channel_url (str): The channel URL.
-
-    Returns:
-        List[str]: The video URLs.
-    """
-
-    channel = YDL.extract_info(channel_url, download=False)
-
-    if not channel["entries"]:
-        raise ValueError(f"Channel {channel_url} has no videos.")
-
-    video_urls = []
-    video_ids = []
-    if "entries" in channel["entries"][0]:
-        for entry in channel["entries"][0]["entries"]:
-            video_urls.append(entry["url"])
-            video_ids.append(entry["id"])
-    else:
-        for entry in channel["entries"]:
-            video_urls.append(entry["url"])
-            video_ids.append(entry["id"])
-
-    return channel["channel_id"], video_urls, video_ids
-
-
-def get_id(url: str) -> str:
-    """Get the video ID from a URL.
-
-    Args:
-        url (str): The URL
-
-    Returns:
-        str: The video ID
-    """
-    info = YDL.extract_info(url, download=False)
-    return info["id"]
-
-def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
-    """
-    Finds the indexes of the query in the transcript
-        topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
-    Args:
-        transcript (List[Dict[str, Any]]): The transcript data
-        query (str): The query
-
-    Returns:
-        List[int]: The indexes of the query
-    """
-
-    indexes = []
-    for i, snippet in enumerate(transcript):
-        casefolded = [word.casefold() for word in snippet["matched_tokens"]]
-        if query in casefolded:
-            debug(f"Snippet: {snippet}")
-
-            indexes.append(i)
-    return indexes
-
-
-def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
-    """
-    Finds the indexes of the query in the transcript
-
-    Args:
-        transcript (List[Dict[str, Any]]): The transcript data
-        words (List[str]): The query words
-
-    Returns:
-        List[int]: The indexes of the query
-    """
-
-    indexes = []
-    for i, snip in enumerate(transcript):
-        snippet = [word.casefold() for word in snip["matched_tokens"]]
-        if words[0] in snippet:
-            next_snippet = [word.casefold() for word in transcript[i + 1]
-                            ["matched_tokens"]] if i + 1 < len(transcript) else None
-            debug(f"Snippet: {snippet}")
-            debug(f"Next Snippet: {next_snippet}")
-            if next_snippet:
-                if all(word in snippet or word in next_snippet for word in words[1:]):
-                    indexes.append(i)
-            else:
-                if all(word in snippet for word in words[1:]):
-                    indexes.append(i)
-    return indexes
-
-
-def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
-    """
-    Finds the indexes of the query in the transcript
-
-    Args:
-        transcript (List[Dict[str, Any]]): The transcript data
-        query (str): The query
-
-    Returns:
-        List[int]: The indexes of the query
-    """
-
-    debug(f"Finding indexes of {query} in transcript")
-    words = query.split()
-    if len(words) > WORD_LIMIT:
-        raise ValueError(f"""Query is too long. Please limit to
-                         {WORD_LIMIT} words or less.""")
-
-    words = [word.casefold() for word in words]
-
-    return single_word(transcript, query.casefold()) \
-        if len(words) == 1 \
-        else multi_word(transcript, words)
-
-def mark_word(sentence: str, word: str) -> str:
-    """
-    Takes every instance of word within a sentence and wraps it in <mark> tags.
-    This algorithm will also ignore cases.
-
-    Args:
-        sentence (str): The sentence
-        word (str): The word
-
-    Returns:
-        str: The marked sentence
-    """
-
-    pattern = re.compile(re.escape(word), re.IGNORECASE)
-    return pattern.sub(r"<mark>\g<0></mark>", sentence)
-
-
-def search(query: str) -> List[Dict[str, Any]]:
-    """Searches for a query in the transcript data.
-
-    Args:
-        query (str): The query to search for.
-
-    Returns:
-        Dict[str, List[Dict[str, Any]]]: The search results.
-    """
-    SEARCH_PARAMS["q"] = f"\"{query}\""
-
-    debug(f"Searching for {SEARCH_PARAMS['q']} in transcripts.")
-
-    response = TYPESENSE.collections["transcripts"].documents.search(
-        SEARCH_PARAMS)
-
-    result = []
-
-    for hit in response["hits"]:
-        document = hit["document"]
-
-        data = {
-            "video_id": document["id"],
-            "title": document["title"],
-            "channel_id": document["channel_id"],
-            "channel_name": document["channel_name"],
-            "matches": []
-        }
-
-        query_no_quotes = SEARCH_PARAMS["q"][1:-1] # pylint: disable=E1136
-        for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
-            marked_snippet = mark_word(
-                document["transcript"][index], query_no_quotes)
-            data["matches"].append(
-                {"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
-
-        debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
-
-        result.append(data)
-    return result
-
+# File-System Imports
+from settings import API_RESPONSE_HEADERS, TYPESENSE_SEARCH_PARAMS, MAX_QUERY_WORD_LIMIT
+from helpers import debug
+from scrape import process_url
+from search import search_typesense
 
 @functions_framework.http
 def transcript_api(request: Request) -> Request:
@@ -426,70 +33,59 @@ def transcript_api(request: Request) -> Request:
           Response object using `make_response`
           <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
         - HTTP status code.
-        - Headers for the response.
+        - API_RESPONSE_HEADERS for the response.
     """
 
     start = perf_counter()
     debug("Transcript API called")
 
-    request_json = request.get_json(silent=True)
-    request_args = request.args
+    request_json = request.get_json(silent=True) or {"empty": True}
+    request_args = request.args or {"empty": True}
 
     data = {
         "status": "success",
-        "word_limit": WORD_LIMIT,
+        "MAX_QUERY_WORD_LIMIT": MAX_QUERY_WORD_LIMIT,
         "time": None,
         "channel_id": None,
         "video_ids": None,
         "hits": None,
     }
 
-    SEARCH_PARAMS["filter_by"] = ""
+    channel_id = request_json.get("channel_id")
+    video_ids = request_json.get("video_ids")
+    query = request_json.get("query")
 
-    channel_id = None
-    if request_json and "channel_id" in request_json:
-        channel_id = request_json["channel_id"]
-
-    if channel_id:
-        SEARCH_PARAMS["filter_by"] = f"channel_id:{channel_id}"
-
-    video_ids = None
-    if request_json and "video_ids" in request_json:
-        video_ids = request_json["video_ids"]
-
-    if video_ids:
-        ss = io.StringIO()
-        ss.write("video_id:")
-        ss.write(video_ids)
-        SEARCH_PARAMS["filter_by"] = ss.getvalue()
-
-    url = None
-    if request_json and "url" in request_json:
-        url = request_json["url"]
-    elif request_args and "url" in request_args:
-        url = request_args["url"]
-
-    if url:
-        data_temp = None
+    if query: # Case when only searching is happening
+        copy_search_param = TYPESENSE_SEARCH_PARAMS.copy() # Normally copy is bad, but this should be fast
+        copy_search_param["filter_by"] = f"channel_id:{channel_id}" if channel_id else ""
+        if video_ids:
+            ss = io.StringIO()
+            ss.write("video_id:")
+            ss.write(video_ids)
+            copy_search_param["filter_by"] = ss.getvalue()
+        copy_search_param["q"] = f"\"{query}\""
         try:
-            url_type = get_video_type(url)
-            data_temp = process_url(url, url_type)
+            data["hits"] = search_typesense(copy_search_param)
         except ValueError as e:
-            return (jsonify({"error": str(e)}), 400, HEADERS)
-        data["video_ids"] = data_temp["video_ids"]
-        data["channel_id"] = data_temp["channel_id"]
+            return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
+    else: # Case when we only scraping is happening
+        url = None
+        if request_json and "url" in request_json:
+            url = request_json["url"]
+        elif request_args and "url" in request_args:
+            url = request_args["url"]
 
-    query = None
-    if request_json and "query" in request_json:
-        query = request_json["query"]
+        if url:
+            data_temp = None
+            try:
+                data_temp = process_url(url)
+            except ValueError as e:
+                return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
+            data["video_ids"] = data_temp["video_ids"]
+            data["channel_id"] = data_temp["channel_id"]
 
-    if query:
-        try:
-            data["hits"] = search(query)
-        except ValueError as e:
-            return (jsonify({"error": str(e)}), 400, HEADERS)
     end = perf_counter()
     data["time"] = end - start
     debug(f"Transcript API finished in {data['time']} seconds")
 
-    return (jsonify(data), 200, HEADERS)
+    return (jsonify(data), 200, API_RESPONSE_HEADERS)
