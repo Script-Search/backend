@@ -182,7 +182,6 @@ def transcript_downloader(cloud_event: functions_framework.CloudEvent) -> None:
         return 400
 
     info = YDL.extract_info(URL, download=False)
-    print(info)
     insert_transcript(info)
 
     print(f"Elapsed Time: {time.time() - startTime}")

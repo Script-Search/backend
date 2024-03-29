@@ -5,6 +5,8 @@ It processes incoming requests and sends them to the appropriate functions.
 
 # Standard Library Imports
 import re
+import json
+import io
 from asyncio import Future
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from enum import Enum
@@ -19,12 +21,9 @@ import functions_framework
 from flask import jsonify, Request
 from google.cloud import pubsub_v1
 from google.oauth2 import service_account
-from firebase_admin import credentials, firestore, initialize_app
 from typesense import Client
 from yt_dlp import YoutubeDL
 
-
-TEST_COLLECTION = None
 PUBLISHER = None
 TOPIC_PATH = None
 LOGGER_CONSOLE = None
@@ -104,6 +103,8 @@ YDL_OPS = {
     "quiet": True,
     "extract_flat": True,
     "playlist_items": f"1-{LIMIT}",
+    "extractor_args": {'youtube': {'player_skip': ['webpage'], 'player_client': ['web', 'android']}},
+    "source_address": "0.0.0.0", # we're getting ip blocked
 }
 """
 Youtube-dl options.
@@ -163,37 +164,6 @@ def get_video_type(url: str) -> URLType:
         return URLType.CHANNEL
     raise ValueError(f"Invalid URL: {url}")
 
-
-def send_url(url: str, video_id: str) -> Future:
-    """
-    Sends a video url to Pub/Sub
-
-    Args:
-        url (str): Video URL
-
-    Returns:
-        None
-    """
-    # video_id = get_id(url)
-
-    if video_exists(video_id):
-        debug(f"Video {video_id} already exists in Firestore")
-        return 
-
-    debug(f"Sending URL: {url}")
-
-    global PUBLISHER, TOPIC_PATH # pylint: disable=W0603
-    if PUBLISHER is None:
-        cred = service_account.Credentials.from_service_account_file(
-            "credentials_pub_sub.json")
-        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred)
-        TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "YoutubeURLs")
-    
-    data = url.encode("utf-8")
-
-    return PUBLISHER.publish(TOPIC_PATH, data=data)
-
-
 def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
     """
     Takes a Universal Reference Link, 
@@ -210,10 +180,10 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
         "channel_id": None,
     }
 
-    futures = []
+    video_ids = []
     if url_type == URLType.VIDEO:
         video_id = get_id(url)
-        send_url(url, video_id)
+        video_ids.append(video_id)
         SEARCH_PARAMS["filter_by"] = f"video_id:{video_id}"
     elif url_type == URLType.PLAYLIST:
         video_urls, video_ids = get_playlist_videos(url)
@@ -226,23 +196,21 @@ def process_url(url: str, url_type: URLType) -> Dict[str, Any]:
         ss.write("]")
         data["video_ids"] = ss.getvalue()
         data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
-        
-        # for video_url, video_id in zip(video_urls, video_ids):
-            # futures.append(send_url(video_url, video_id))
-
-        with ProcessPoolExecutor(THREAD_LIMIT) as executor:
-            futures = executor.map(send_url, video_urls, video_ids)
 
     elif url_type == URLType.CHANNEL:
         data["channel_id"], video_urls, video_ids = get_channel_videos(url)
-
-        # for video_url, video_id in videos:
-            # futures.append(send_url(video_url, video_id))
-
-        with ProcessPoolExecutor(THREAD_LIMIT) as executor:
-            futures = executor.map(send_url, video_urls, video_ids)
     else:
         raise ValueError(f"Invalid URL: {url}")
+    
+    global PUBLISHER, TOPIC_PATH # pylint: disable=W0603
+    if PUBLISHER is None:
+        cred = service_account.Credentials.from_service_account_file(
+            "credentials_pub_sub.json")
+        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred)
+        TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "Test-Go-Url-Check")
+    
+    byteString = json.dumps(video_ids).encode("utf-8")
+    PUBLISHER.publish(TOPIC_PATH, data=byteString) # We don't really need result from this I believe
 
     return data
 
@@ -307,28 +275,6 @@ def get_id(url: str) -> str:
     """
     info = YDL.extract_info(url, download=False)
     return info["id"]
-
-
-def video_exists(video_id: str) -> bool:
-    """Checks to see if a video exists in Firestore
-
-    Args:
-        video_id (str): The video ID
-
-    Returns:
-        bool: True if the video exists, False otherwise
-    """
-    debug(f"Checking if {video_id} exists in Firestore")
-
-    global TEST_COLLECTION # pylint: disable=W0603
-    if not TEST_COLLECTION:
-        cred = credentials.Certificate("credentials_firebase.json")
-        initialize_app(cred)
-        db = firestore.client()
-        TEST_COLLECTION = db.collection("test")
-
-    document = TEST_COLLECTION.document(video_id).get()
-    return document.exists
 
 def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     """
