@@ -11,6 +11,8 @@ import (
 )
 
 func init() {
+	InitConfig()
+	InitTypesense()
 	functions.CloudEvent("IndexOnWrite", indexOnWrite)
 }
 

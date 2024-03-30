@@ -12,7 +12,7 @@ var (
 	typesenseLazyLoaded sync.Once
 )
 
-func init() {
+func InitTypesense() {
 	typesenseLazyLoaded.Do(func() {
 		TypesenseClient = typesense.NewClient(
 			typesense.WithServer(fmt.Sprintf("%s:%d", TypesenseHosts[0], TypesensePort)),
