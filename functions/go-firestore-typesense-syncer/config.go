@@ -19,7 +19,7 @@ var TypesenseAPIKey string
 var TypesenseBackfillTriggerDocumentInFirestore string = "typesense_sync/backfill"
 var TypesenseBackfillBatchSize int = 1000
 
-func init() {
+func InitConfig() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
