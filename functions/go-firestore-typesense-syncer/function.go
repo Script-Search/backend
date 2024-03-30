@@ -11,8 +11,11 @@ import (
 )
 
 func init() {
+	fmt.Println("Initing in function...")
 	InitConfig()
+	fmt.Println("Finished config init. Starting typesense init...")
 	InitTypesense()
+	fmt.Println("Finished typesense init. Starting listener...")
 	functions.CloudEvent("IndexOnWrite", indexOnWrite)
 }
 
