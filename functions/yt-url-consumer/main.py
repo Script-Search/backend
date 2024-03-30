@@ -109,7 +109,7 @@ def insert_transcript(info_json: dict) -> bool:
         ttml_url = info_json.get("subtitle_url")
 
         if not ttml_url:
-            raise Exception("No ttml_url from given video.")
+            raise Exception(f"No ttml_url from given video: https://www.youtube.com/watch?v={video_id}")
         
         response = get_ttml_response(ttml_url)
 
@@ -147,6 +147,9 @@ def transcript_downloader(cloud_event: functions_framework.CloudEvent) -> None:
     if "watch" not in URL:  # TODO: Ensure inputted URL is a singular video
         print("watch not in URL")
         return 400
-
-    info = YDL.extract_info(URL, download=False)
-    insert_transcript(info)
+    
+    try:
+        info = YDL.extract_info(URL, download=False)
+        insert_transcript(info)
+    except Exception as e:
+        return {"error": str(e)}, 400
