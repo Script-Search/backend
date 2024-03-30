@@ -9,7 +9,7 @@ steps:
     gcloud functions deploy go-publish-ids \
       --entry-point=PubMissingIds \
       --runtime=go122 \
-      --region=us-west2 \
+      --region=us-central1 \
       --gen2
   env:
   - 'DATABASE_ID=${_DATABASE_ID}'
