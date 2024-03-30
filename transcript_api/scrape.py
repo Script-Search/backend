@@ -13,11 +13,17 @@ from io import StringIO
 # Third-Party Imports
 from yt_dlp import YoutubeDL
 from google.cloud import pubsub_v1
+from google.cloud.pubsub_v1.types import BatchSettings
 from google.oauth2 import service_account
 
 # File-System Imports
 from settings import YDL_OPS, VALID_CHANNEL_REGEX, VALID_PLAYLIST_REGEX, VALID_VIDEO_REGEX
 from helpers import debug
+
+BATCH_SETTINGS = BatchSettings(
+    max_messages=1,  # Publish after 1 message
+    max_latency=0,   # Try to publish instantly
+)
 
 YDL_CLIENT = None
 PUBLISHER = None
@@ -84,7 +90,7 @@ def process_url(url: str) -> Dict[str, Any]:
     if PUBLISHER is None:
         cred = service_account.Credentials.from_service_account_file(
             "credentials_pub_sub.json")
-        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred)
+        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred, batch_settings=BATCH_SETTINGS)
         TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "Test-Go-Url-Check")
     
     byteString = json.dumps(video_ids).encode("utf-8")
