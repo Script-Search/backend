@@ -1,4 +1,4 @@
-package main
+package function
 
 import (
 	"os"
@@ -14,7 +14,7 @@ var ShouldFlattenNestedDocuments bool
 var TypesenseHosts []string
 var TypesensePort int
 var TypesenseProtocol string
-var TypesenseCollectionName string = "bye"
+var TypesenseCollectionName string
 var TypesenseAPIKey string
 var TypesenseBackfillTriggerDocumentInFirestore string = "typesense_sync/backfill"
 var TypesenseBackfillBatchSize int = 1000

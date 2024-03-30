@@ -1,0 +1,19 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - 
+    gcloud functions deploy go-firestore-typesense-syncer \
+      --entry-point=IndexOnWrite \
+      --runtime=go122 \
+      --region=us-west2 \
+      --trigger-location=us-west2 \
+      --trigger-event-filters=type=google.cloud.firestore.document.v1.written \
+      --trigger-event-filters=database='(default)' \
+      --trigger-event-filters-path-pattern=document='test/{documentId}'
+      --gen2
+  id: "deploy-cloudfunc-go-firestore-typesense-syncer"
+  dir: functions/go-firestore-typesense-syncer
+options:
+  logging: CLOUD_LOGGING_ONLY
