@@ -3,7 +3,7 @@ steps:
   entrypoint: 'bash'
   args:
   - '-c'
-  - 
+  - |
     gcloud functions deploy go-firestore-typesense-syncer \
       --entry-point=IndexOnWrite \
       --runtime=go122 \
