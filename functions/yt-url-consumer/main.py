@@ -1,16 +1,14 @@
 import base64
-import time
 import functions_framework
 import io
 import yt_dlp
 
-from urllib3 import PoolManager
-from firebase_admin import credentials, firestore, initialize_app
 from lxml import etree
 from typing import Tuple, List
 
-test_collection = None
-req_pool = None
+# File-System Imports; Use modules like singletons to ensure only one instance created
+from firestore import initialize_firestore, upsert
+from poolmanager import initialize_req_pool, get_ttml_response
 
 YDL_OPTS = {
     "skip_download": True,
@@ -27,10 +25,6 @@ Options for yt-dlp to download the subtitles in the right format
 """
 
 YDL = yt_dlp.YoutubeDL(YDL_OPTS)
-"""
-yt-dlp object to download the subtitles
-"""
-
 
 def is_valid_subtitle(element: etree._Element) -> bool:
     """Checks if the element is a valid subtitle element
@@ -89,26 +83,6 @@ def parse_ttml(response_data: str) -> Tuple[List[str], List[int]]:
 
     return subtitles, timestamps
 
-
-def initialize_firestore() -> None:
-    """Uses lazy-loading to initialize the firestore client and collection
-    """
-
-    global test_collection
-    if test_collection == None:
-        cred = credentials.Certificate("credentials.json")
-        initialize_app(cred)
-        db = firestore.client()
-        test_collection = db.collection("test")
-
-def initialize_req_pool() -> None:
-    """Uses lazy-loading to initialize the requests pool
-    """
-
-    global req_pool
-    if req_pool == None:
-        req_pool = PoolManager()
-
 def insert_transcript(info_json: dict) -> bool:
     """Inserts the transcript data into the firestore database
 
@@ -137,15 +111,13 @@ def insert_transcript(info_json: dict) -> bool:
         if not ttml_url:
             raise Exception("No ttml_url from given video.")
         
-        response = req_pool.request("GET", ttml_url)
+        response = get_ttml_response(ttml_url)
 
         if response.status != 200:
             raise Exception(f"Unable to fetch ttml_url, {response.status} code.")
 
         parsed_transcript, timestamps = parse_ttml(response.data)
-
-        doc_ref = test_collection.document(video_id)
-        doc_ref.set({
+        upsert({
             "video_id": video_id,
             "channel_id": channel_id,
             "channel_name": channel_name,
@@ -160,21 +132,16 @@ def insert_transcript(info_json: dict) -> bool:
         print(f"Error inserting transcript data: {e}")
         return False
 
-# Triggered from a message on a Cloud Pub/Sub topic.
-
-
 @functions_framework.cloud_event
 def transcript_downloader(cloud_event: functions_framework.CloudEvent) -> None:
     """Downloads the transcript from the given URL and inserts it into the firestore database
 
     Args:
-        cloud_event (CloudEvent): The cloud event containing the URL to download the transcript from
+        cloud_event (CloudEvent): Pub/Sub msg containing the URL to download the transcript from
 
     Returns:
         None
     """
-    
-    startTime = time.time()
     URL = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
 
     if "watch" not in URL:  # TODO: Ensure inputted URL is a singular video
@@ -183,5 +150,3 @@ def transcript_downloader(cloud_event: functions_framework.CloudEvent) -> None:
 
     info = YDL.extract_info(URL, download=False)
     insert_transcript(info)
-
-    print(f"Elapsed Time: {time.time() - startTime}")
