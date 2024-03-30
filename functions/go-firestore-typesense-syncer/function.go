@@ -11,12 +11,12 @@ import (
 )
 
 func init() {
-	fmt.Println("Initing in function...")
-	InitConfig()
-	fmt.Println("Finished config init. Starting typesense init...")
-	InitTypesense()
-	fmt.Println("Finished typesense init. Starting listener...")
 	functions.CloudEvent("IndexOnWrite", indexOnWrite)
+	fmt.Println("cloudevent inited")
+	InitConfig()
+	fmt.Println("config inited")
+	InitTypesense()
+	fmt.Println("typesense inited")
 }
 
 func indexOnWrite(ctx context.Context, event event.Event) error {

@@ -8,10 +8,7 @@ steps:
       --entry-point=IndexOnWrite \
       --runtime=go122 \
       --region=us-west2 \
-      --trigger-location=us-west2 \
-      --trigger-event-filters=type=google.cloud.firestore.document.v1.written \
-      --trigger-event-filters=database='(default)' \
-      --trigger-event-filters-path-pattern=document='test/{documentId}'
+      --source=. \
       --gen2
   id: "deploy-cloudfunc-go-firestore-typesense-syncer"
   dir: functions/go-firestore-typesense-syncer
