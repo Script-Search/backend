@@ -6,10 +6,11 @@ It processes incoming requests and sends them to the appropriate functions.
 # Standard Library Imports
 import io
 from time import perf_counter
+from typing import Dict, Tuple
 
 # Third-Party Imports
 import functions_framework
-from flask import jsonify, Request
+from flask import jsonify, Request, Response
 
 # File-System Imports
 from settings import API_RESPONSE_HEADERS, TYPESENSE_SEARCH_PARAMS, MAX_QUERY_WORD_LIMIT
@@ -18,7 +19,7 @@ from scrape import process_url
 from search import search_typesense
 
 @functions_framework.http
-def transcript_api(request: Request) -> Request:
+def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
     """HTTP Cloud Function for handling transcript requests.
 
     This function handles incoming HTTP requests containing transcript data.
