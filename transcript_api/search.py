@@ -13,7 +13,13 @@ from settings import MAX_QUERY_WORD_LIMIT, TYPESENSE_HOST, TYPESENSE_API_KEY
 
 TYPESENSE_CLIENT = None
 
-def init_typesense():
+def init_typesense() -> None:
+    """Initializes the typesense client.
+
+    Returns:
+        None: Nothing
+    """
+
     global TYPESENSE_CLIENT
     if TYPESENSE_CLIENT == None:
         TYPESENSE_CLIENT = Client({
@@ -152,6 +158,6 @@ def mark_word(sentence: str, word: str) -> str:
         str: The marked sentence
     """
 
-    pattern = re.compile(re.escape(word), re.IGNORECASE)
+    pattern = re.compile(r"\b" + re.escape(word) + r"\b", re.IGNORECASE)
     return pattern.sub(r"<mark>\g<0></mark>", sentence)
 
