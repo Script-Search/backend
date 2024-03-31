@@ -2,6 +2,7 @@ package function
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
@@ -41,6 +42,12 @@ func indexOnWrite(ctx context.Context, event event.Event) error {
 			return fmt.Errorf("error converting to typesense types (%s): %w", val.GetName(), err)
 		}
 
+		b, err2 := json.Marshal(typesenseDoc)
+		if err2 != nil {
+			return fmt.Errorf("error when json marshaling on %s", val.GetName())
+		}
+		
+		fmt.Println(string(b))
 		fmt.Printf("Upserting document %s", val.GetName())
 		_, err = TypesenseClient.Collection(TypesenseCollectionName).Documents().Upsert(ctx, typesenseDoc)
 		if err != nil {
