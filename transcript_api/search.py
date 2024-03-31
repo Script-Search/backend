@@ -11,7 +11,7 @@ from typesense import Client
 from helpers import debug
 from settings import MAX_QUERY_WORD_LIMIT, TYPESENSE_HOST, TYPESENSE_API_KEY
 
-TYPESENSE_CLIENT = None
+TYPESENSE_CLIENT: Client = None
 
 def init_typesense() -> None:
     """Initializes the typesense client.
