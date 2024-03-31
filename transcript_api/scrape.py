@@ -174,3 +174,4 @@ def get_video(url: str) -> str:
     """
     info = YDL_CLIENT.extract_info(url, download=False)
     return info["id"]
+

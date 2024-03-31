@@ -154,3 +154,4 @@ def mark_word(sentence: str, word: str) -> str:
 
     pattern = re.compile(re.escape(word), re.IGNORECASE)
     return pattern.sub(r"<mark>\g<0></mark>", sentence)
+

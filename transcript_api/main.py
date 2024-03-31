@@ -69,11 +69,7 @@ def transcript_api(request: Request) -> Request:
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
     else: # Case when we only scraping is happening
-        url = None
-        if request_json and "url" in request_json:
-            url = request_json["url"]
-        elif request_args and "url" in request_args:
-            url = request_args["url"]
+        url = request_json.get("url")
 
         if url:
             data_temp = None
