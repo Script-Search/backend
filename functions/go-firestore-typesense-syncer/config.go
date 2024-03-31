@@ -4,8 +4,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"log"
-	"github.com/joho/godotenv"
 )
 
 var FirestoreCollectionPath string
@@ -20,11 +18,6 @@ var TypesenseBackfillTriggerDocumentInFirestore string = "typesense_sync/backfil
 var TypesenseBackfillBatchSize int = 1000
 
 func InitConfig() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
 	FirestoreCollectionPath = os.Getenv("FIRESTORE_COLLECTION_PATH")
 	FirestoreCollectionFields = filterAndTrim(strings.Split(os.Getenv("FIRESTORE_COLLECTION_FIELDS"), ","))
 	ShouldFlattenNestedDocuments = os.Getenv("FLATTEN_NESTED_DOCUMENTS") == "true"
