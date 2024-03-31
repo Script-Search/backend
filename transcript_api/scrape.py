@@ -116,7 +116,7 @@ def get_url_type(url: str) -> URLType:
         return URLType.CHANNEL
     raise ValueError(f"Invalid URL: {url}")
 
-def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
+def get_channel_videos(channel_url: str) -> Tuple[str, List[str], List[str]]:
     """Get the video urls from a channel.
 
     Args:
