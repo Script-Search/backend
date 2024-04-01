@@ -9,3 +9,4 @@ venv
 __pycache__/
 node_modules/
 typesense/
+cmd/
