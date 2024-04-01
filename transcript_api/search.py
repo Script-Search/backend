@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import re
 
-from typing import Any
+from typing import get_type_hints
 from typesense import Client
 
 from helpers import debug
@@ -99,7 +99,7 @@ def search_typesense(query_params: dict[str, str|int|bool]) -> list[dict[str, st
         result.append(data)
     return result
 
-def single_word(transcript: list[dict[str, list[dict[str, list[str]|str]]]], query: str) -> list[int]:
+def single_word(transcript: list[dict[str, list[dict[str, str]]]], query: str) -> list[int]:
     """
     Finds the indexes of the query in the transcript
         topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
@@ -113,7 +113,7 @@ def single_word(transcript: list[dict[str, list[dict[str, list[str]|str]]]], que
 
     indexes = []
     for i, snippet in enumerate(transcript):
-        casefolded = [word.casefold() for word in snippet["matched_tokens"]]
+        casefolded = [word.casefold() for word in snippet["matched_tokens"]] 
         if query in casefolded:
             debug(f"Snippet: {snippet}")
 
@@ -136,8 +136,7 @@ def multi_word(transcript: list[dict[str, list[dict[str, list[str]|str]]]], word
     for i, snip in enumerate(transcript):
         snippet = [word.casefold() for word in snip["matched_tokens"]]
         if words[0] in snippet:
-            next_snippet = [word.casefold() for word in transcript[i + 1]
-                            ["matched_tokens"]] if i + 1 < len(transcript) else ""
+            next_snippet = [word.casefold() for word in transcript[i + 1]["matched_tokens"]] if i + 1 < len(transcript) else ""
             debug(f"Snippet: {snippet}")
             debug(f"Next Snippet: {next_snippet}")
             if next_snippet:

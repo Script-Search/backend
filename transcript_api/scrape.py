@@ -91,8 +91,8 @@ def process_url(url: str) -> dict[str, list[str]|str|None]:
     url_type = get_url_type(url)
 
     data: dict[str, str] = {
-        "video_ids": "",
-        "channel_id": "",
+        "video_ids": None,
+        "channel_id": None,
     }
 
     video_ids = []
