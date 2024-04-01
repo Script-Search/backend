@@ -28,9 +28,9 @@ Dependencies:
 Note:
 Ensure that the environment variables are properly configured before using this module.
 """
+from __future__ import annotations
 
 from os import environ
-from typing import Any, Dict, Optional
 
 # Config Settings
 DEBUG_FLAG: bool = True
@@ -40,7 +40,7 @@ MAX_VIDEO_LIMIT: int = 250
 VALID_VIDEO_REGEX: str      = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
 VALID_PLAYLIST_REGEX: str   = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=[\w\-]+)(\&index=[0-9]*)?(\&si=[\w\-]+)?$"
 VALID_CHANNEL_REGEX: str    = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(((c\/)?[\w\-\.]+)|(\@[\w\-\.]{3,30})|(channel\/[\w\-]+))(\?si=[\w\-]+)?(\/videos|\/featured)?$"
-YDL_OPS: Dict[str, Any] = {
+YDL_OPS: dict[str, bool|str|dict[str, dict[str, list[str]]]] = {
     "quiet": True,
     "extract_flat": True,
     "playlist_items": f"1-{MAX_VIDEO_LIMIT}",
@@ -55,8 +55,8 @@ YDL_OPS: Dict[str, Any] = {
 
 # TYPESENSE Settings
 MAX_QUERY_WORD_LIMIT: int = 5
-TYPESENSE_API_KEY: Optional[str]    = environ.get("TYPESENSE_API_KEY")
-TYPESENSE_HOST: Optional[str]       = environ.get("TYPESENSE_HOST")
+TYPESENSE_API_KEY: str|None = environ.get("TYPESENSE_API_KEY")
+TYPESENSE_HOST: str|None    = environ.get("TYPESENSE_HOST")
 TYPESENSE_SEARCH_PARAMS = {
     "drop_tokens_threshold": 0,
     "typo_tokens_threshold": 0,
@@ -73,7 +73,7 @@ TYPESENSE_SEARCH_PARAMS = {
 }
 
 # API Settings
-API_RESPONSE_HEADERS: Dict[str, str] = {
+API_RESPONSE_HEADERS: dict[str, str] = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PATCH,UPDATE,FETCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",

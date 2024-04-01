@@ -6,7 +6,6 @@ It processes incoming requests and sends them to the appropriate functions.
 # Standard Library Imports
 import io
 from time import perf_counter
-from typing import Dict, Tuple
 
 # Third-Party Imports
 import functions_framework
@@ -19,7 +18,7 @@ from scrape import process_url
 from search import search_typesense
 
 @functions_framework.http
-def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
+def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
     """HTTP Cloud Function for handling transcript requests.
 
     This function handles incoming HTTP requests containing transcript data.
@@ -58,7 +57,7 @@ def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
 
     if query: # Case when only searching is happening
         copy_search_param = TYPESENSE_SEARCH_PARAMS.copy() # Normally copy is bad, but this should be fast
-        copy_search_param["filter_by"] = f"channel_id:{channel_id}" if channel_id else None
+        copy_search_param["filter_by"] = f"channel_id:{channel_id}" if channel_id else ""
         if video_ids:
             ss = io.StringIO()
             ss.write("video_id:")
@@ -70,7 +69,10 @@ def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
     else: # Case when we only scraping is happening
-        url = request_json.get("url")
+        if request_args and "url" in request_args:
+            url = request_args["url"]
+        if request_json and "url" in request_json:
+            url = request_json.get("url")
 
         if url:
             data_temp = None

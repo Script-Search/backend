@@ -34,12 +34,12 @@ Dependencies:
 Note:
 Ensure that the settings module is properly configured before using this module.
 """
+from __future__ import annotations
 
 # Standard Library Imports
 import re
 import json
 from enum import Enum
-from typing import Any, Optional, Dict, List, Tuple
 from io import StringIO
 
 # Third-Party Imports
@@ -71,11 +71,11 @@ def init_ydl_client():
     """
     Initialize the YT-DLP Client if not already initialized; Uses lazy loading
     """
-    global YDL_CLIENT
-    if YDL_CLIENT == None:
+    global YDL_CLIENT # pylint: disable=global-statement
+    if not YDL_CLIENT:
         YDL_CLIENT = YoutubeDL(YDL_OPS)
 
-def process_url(url: str) -> Dict[str, Any]:
+def process_url(url: str) -> dict[str, list[str]|str]:
     """
     Takes a Universal Reference Link, 
     determines if the url is a channel or a playlist, 
@@ -90,8 +90,8 @@ def process_url(url: str) -> Dict[str, Any]:
     url_type = get_url_type(url)
 
     data = {
-        "video_ids": List[str],
-        "channel_id": Optional[str],
+        "video_ids": list[str],
+        "channel_id": str|None,
     }
 
     video_ids = []
@@ -102,7 +102,7 @@ def process_url(url: str) -> Dict[str, Any]:
         ss.write(f"[{video_id}]")
         data["video_ids"] = ss.getvalue()
     elif url_type == URLType.PLAYLIST:
-        video_urls, video_ids = get_playlist_videos(url)
+        video_ids = get_playlist_videos(url)
 
         # Prepare video_ids for filtering
         ss = StringIO()
@@ -111,14 +111,14 @@ def process_url(url: str) -> Dict[str, Any]:
             ss.write(f'`{video_id}`,')
         ss.write("]")
         data["video_ids"] = ss.getvalue()
-        data["video_ids"] = str(data["video_ids"]).replace(",]", "]") # pylint: disable=E1101
+        data["video_ids"] = str(data["video_ids"]).replace(",]", "]")
 
     elif url_type == URLType.CHANNEL:
-        data["channel_id"], video_urls, video_ids = get_channel_videos(url)
+        data["channel_id"], video_ids = get_channel_videos(url)
     else:
         raise ValueError(f"Invalid URL: {url}")
     
-    global PUBLISHER, TOPIC_PATH # pylint: disable=W0603
+    global PUBLISHER, TOPIC_PATH # pylint: disable=global-statement
     if PUBLISHER is None:
         cred = service_account.Credentials.from_service_account_file(
             "credentials_pub_sub.json")
@@ -148,7 +148,7 @@ def get_url_type(url: str) -> URLType:
         return URLType.CHANNEL
     raise ValueError(f"Invalid URL: {url}")
 
-def get_channel_videos(channel_url: str) -> Tuple[str, List[str], List[str]]:
+def get_channel_videos(channel_url: str) -> tuple[str, list[str]]:
     """Get the video urls from a channel.
 
     Args:
@@ -158,25 +158,25 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str], List[str]]:
         List[str]: The video URLs.
     """
 
-    channel: Dict[str, Any] = YDL_CLIENT.extract_info(channel_url, download=False)
+    channel = YDL_CLIENT.extract_info(channel_url, download=False)
 
     if not channel["entries"]:
         raise ValueError(f"Channel {channel_url} has no videos.")
 
-    video_urls = []
+    # video_urls = []
     video_ids = []
     if "entries" in channel["entries"][0]:
         for entry in channel["entries"][0]["entries"]:
-            video_urls.append(entry["url"])
+            # video_urls.append(entry["url"])
             video_ids.append(entry["id"])
     else:
         for entry in channel["entries"]:
-            video_urls.append(entry["url"])
+            # video_urls.append(entry["url"])
             video_ids.append(entry["id"])
 
-    return channel["channel_id"], video_urls, video_ids
+    return channel["channel_id"], video_ids
 
-def get_playlist_videos(playlist_url: str) -> Tuple[List[str], List[str]]:
+def get_playlist_videos(playlist_url: str) -> list[str]:
     """Get the video urls from a playlist.
 
     Args:
@@ -187,13 +187,13 @@ def get_playlist_videos(playlist_url: str) -> Tuple[List[str], List[str]]:
     """
 
     playlist = YDL_CLIENT.extract_info(playlist_url, download=False)
-    video_urls = []
+    # video_urls = []
     video_ids = []
     for entry in playlist["entries"]:
-        video_urls.append(entry["url"])
+        # video_urls.append(entry["url"])
         video_ids.append(entry["id"])
 
-    return video_urls, video_ids
+    return video_ids
 
 def get_video(url: str) -> str:
     """Get the video ID from a URL.

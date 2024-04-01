@@ -26,10 +26,11 @@ Global Variables:
 Note:
 Ensure that the settings and helpers modules are properly configured before using this module.
 """
+from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Tuple
 
+from typing import Any
 from typesense import Client
 
 from helpers import debug
@@ -38,14 +39,12 @@ from settings import MAX_QUERY_WORD_LIMIT, TYPESENSE_HOST, TYPESENSE_API_KEY
 TYPESENSE_CLIENT: Client = None
 
 def init_typesense() -> None:
-    """Initializes the typesense client.
-
-    Returns:
-        None: Nothing
+    """
+    Initializes the typesense client.
     """
 
-    global TYPESENSE_CLIENT
-    if TYPESENSE_CLIENT == None:
+    global TYPESENSE_CLIENT # pylint: disable=global-statement
+    if not TYPESENSE_CLIENT:
         TYPESENSE_CLIENT = Client({
             "nodes": [{
                 "host": TYPESENSE_HOST,
@@ -56,15 +55,16 @@ def init_typesense() -> None:
             "connection_timeout_seconds": 4
         })
 
-def search_typesense(query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+def search_typesense(query_params: dict[str, str|int|bool]) -> list[dict[str, str|list[dict[str, str|int]]]]:
     """Searches for a query in the transcript data.
 
     Args:
-        query (Dict[str, Any]): The query params to use when searching.
+        query_params (dict[str, str|int|bool]): The query params to use when searching.
 
     Returns:
-        Dict[str, List[Dict[str, Any]]]: The search results.
+        list[dict[str, str|list[dict[str, str|int]]]]: The search results.
     """
+
     debug(f"Searching for {query_params['q']} in transcripts.")
 
     init_typesense()
@@ -84,7 +84,7 @@ def search_typesense(query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
             "matches": []
         }
 
-        query_no_quotes = query_params["q"][1:-1] # pylint: disable=E1136
+        query_no_quotes = str(query_params["q"])[1:-1]
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
             if not (query_no_quotes in document["transcript"][index].casefold()):
                 document["transcript"][index] += f" {document['transcript'][index + 1]}"
@@ -99,12 +99,12 @@ def search_typesense(query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
         result.append(data)
     return result
 
-def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
+def single_word(transcript: list[dict[str, list[dict[str, list[str]|str]]]], query: str) -> list[int]:
     """
     Finds the indexes of the query in the transcript
         topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
     Args:
-        transcript (List[Dict[str, Any]]): The transcript data
+        transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data
         query (str): The query
 
     Returns:
@@ -113,6 +113,9 @@ def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
 
     indexes = []
     for i, snippet in enumerate(transcript):
+        if i == 0:
+            debug(snippet)
+
         casefolded = [word.casefold() for word in snippet["matched_tokens"]]
         if query in casefolded:
             debug(f"Snippet: {snippet}")
@@ -120,16 +123,16 @@ def single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]:
             indexes.append(i)
     return indexes
 
-def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
+def multi_word(transcript: list[dict[str, list[dict[str, list[str]|str]]]], words: list[str]) -> list[int]:
     """
     Finds the indexes of the query in the transcript
 
     Args:
-        transcript (List[Dict[str, Any]]): The transcript data
-        words (List[str]): The query words
+        transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data
+        words (list[str]): The query words
 
     Returns:
-        List[int]: The indexes of the query
+        list[int]: The indexes of the query
     """
 
     indexes = []
@@ -137,32 +140,32 @@ def multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]:
         snippet = [word.casefold() for word in snip["matched_tokens"]]
         if words[0] in snippet:
             next_snippet = [word.casefold() for word in transcript[i + 1]
-                            ["matched_tokens"]] if i + 1 < len(transcript) else None
+                            ["matched_tokens"]] if i + 1 < len(transcript) else ""
             debug(f"Snippet: {snippet}")
             debug(f"Next Snippet: {next_snippet}")
             if next_snippet:
                 if all(word in snippet or word in next_snippet for word in words[1:]):
                     indexes.append(i)
-            else:
-                if all(word in snippet for word in words[1:]):
+            elif all(word in snippet for word in words[1:]):
                     indexes.append(i)
     return indexes
 
-def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
+def find_indexes(transcript: list[dict[str, list[dict[str, list[str]|str]]]], query: str) -> list[int]:
     """
     Finds the indexes of the query in the transcript
 
     Args:
-        transcript (List[Dict[str, Any]]): The transcript data
+        transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data
         query (str): The query
 
     Returns:
-        List[int]: The indexes of the query
+        list[int]: The indexes of the query
     """
 
     debug(f"Finding indexes of {query} in transcript")
     query = query.casefold()
     words = query.split()
+
     if len(words) > MAX_QUERY_WORD_LIMIT:
         raise ValueError(f"""Query is too long. Please limit to
                          {MAX_QUERY_WORD_LIMIT} words or less.""")
