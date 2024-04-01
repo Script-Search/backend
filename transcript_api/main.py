@@ -58,7 +58,7 @@ def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
 
     if query: # Case when only searching is happening
         copy_search_param = TYPESENSE_SEARCH_PARAMS.copy() # Normally copy is bad, but this should be fast
-        copy_search_param["filter_by"] = f"channel_id:{channel_id}" if channel_id else ""
+        copy_search_param["filter_by"] = f"channel_id:{channel_id}" if channel_id else None
         if video_ids:
             ss = io.StringIO()
             ss.write("video_id:")

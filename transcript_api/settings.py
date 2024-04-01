@@ -57,7 +57,7 @@ YDL_OPS: Dict[str, Any] = {
 MAX_QUERY_WORD_LIMIT: int = 5
 TYPESENSE_API_KEY: Optional[str]    = environ.get("TYPESENSE_API_KEY")
 TYPESENSE_HOST: Optional[str]       = environ.get("TYPESENSE_HOST")
-TYPESENSE_SEARCH_PARAMS: Dict[str, Any] = {
+TYPESENSE_SEARCH_PARAMS = {
     "drop_tokens_threshold": 0,
     "typo_tokens_threshold": 0,
     "page": 1,
