@@ -6,7 +6,8 @@ It processes incoming requests and sends them to the appropriate functions.
 # Standard Library Imports
 import io
 from time import perf_counter
-from typing import Dict, Tuple
+import types
+from typing import get_args, get_type_hints
 
 # Third-Party Imports
 import functions_framework
@@ -19,7 +20,7 @@ from scrape import process_url
 from search import search_typesense
 
 @functions_framework.http
-def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
+def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
     """HTTP Cloud Function for handling transcript requests.
 
     This function handles incoming HTTP requests containing transcript data.
@@ -43,10 +44,10 @@ def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
     request_json = request.get_json(silent=True) or {"empty": True}
     request_args = request.args or {"empty": True}
 
-    data = {
+    data: dict[str, str|int|float|list[str]|None] = {
         "status": "success",
         "MAX_QUERY_WORD_LIMIT": MAX_QUERY_WORD_LIMIT,
-        "time": None,
+        "time": 0,
         "channel_id": None,
         "video_ids": None,
         "hits": None,
@@ -63,6 +64,7 @@ def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
             ss = io.StringIO()
             ss.write("video_id:")
             ss.write(video_ids)
+
             copy_search_param["filter_by"] = ss.getvalue()
         copy_search_param["q"] = f"\"{query}\""
         try:
@@ -70,10 +72,13 @@ def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
     else: # Case when we only scraping is happening
-        url = request_json.get("url")
+        if request_args and "url" in request_args:
+            url = request_args["url"]
+        if request_json and "url" in request_json:
+            url = request_json.get("url")
 
         if url:
-            data_temp = None
+            data_temp = {}
             try:
                 data_temp = process_url(url)
             except ValueError as e:
@@ -84,5 +89,12 @@ def transcript_api(request: Request) -> Tuple[Response, int, Dict[str, str]]:
     end = perf_counter()
     data["time"] = end - start
     debug(f"Transcript API finished in {data['time']} seconds")
+
+    for key, value in data.items():
+        t = type(value)
+        if t == types.UnionType:
+            debug(f"{key} : {get_args(value)}")
+        else:
+            debug(f"{key} : {t}")
 
     return (jsonify(data), 200, API_RESPONSE_HEADERS)
