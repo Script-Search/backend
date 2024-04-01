@@ -1,10 +1,25 @@
 """
 This script holds helper functions for our cloud function.
 These functions are meant to be imported into other files.
-"""
 
+Functions:
+- debug(message: str) -> None: Print a debug message.
+
+Global Variables:
+- LOGGER_CONSOLE: Logger instance for console logging.
+
+Dependencies:
+- logging: Provides logging functionality.
+- settings.DEBUG_FLAG: Flag indicating whether debug messages should be printed.
+
+Note:
+Ensure that the settings module is properly configured before using this module.
+
+"""
+# Standard Library Imports
 from logging import DEBUG, getLogger, StreamHandler, Formatter
 
+# File System Imports
 from settings import DEBUG_FLAG
 
 LOGGER_CONSOLE = None

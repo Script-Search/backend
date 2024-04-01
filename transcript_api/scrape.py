@@ -1,6 +1,38 @@
 """
 This script handles the scraping using yt-dlp.
-It extracts metadata information from given urls to send to another function.
+It extracts metadata information from given URLs to send to another function.
+
+Functions:
+- init_ydl_client(): Initializes the YT-DLP client if not already initialized.
+- process_url(url: str) -> Dict[str, Any]: Processes a Universal Reference Link to determine if it's a channel, playlist, or video and returns metadata.
+- get_url_type(url: str) -> URLType: Determines the type of the URL.
+- get_channel_videos(channel_url: str) -> Tuple[str, List[str], List[str]]: Gets video URLs from a channel.
+- get_playlist_videos(playlist_url: str) -> Tuple[List[str], List[str]]: Gets video URLs from a playlist.
+- get_video(url: str) -> str: Gets the video ID from a URL.
+
+Global Variables:
+- YDL_CLIENT: Initialized YT-DLP client.
+- PUBLISHER: PublisherClient instance for publishing messages.
+- TOPIC_PATH: Path to the Pub/Sub topic.
+
+Dependencies:
+- re: Regular expression operations.
+- json: JSON encoder and decoder.
+- enum: Support for enumerations.
+- typing: Type hints support.
+- io.StringIO: Implements an in-memory file-like object.
+- yt_dlp.YoutubeDL: Download videos from YouTube-like sites.
+- google.cloud.pubsub_v1.PublisherClient: Publisher client for Google Cloud Pub/Sub.
+- google.cloud.pubsub_v1.types.BatchSettings: Batch settings for publishing messages.
+- google.oauth2.service_account: Service account credentials.
+- settings.YDL_OPS: Options for YT-DLP client.
+- settings.VALID_CHANNEL_REGEX: Regular expression pattern for valid channel URLs.
+- settings.VALID_PLAYLIST_REGEX: Regular expression pattern for valid playlist URLs.
+- settings.VALID_VIDEO_REGEX: Regular expression pattern for valid video URLs.
+- helpers.debug: Debugging utility.
+
+Note:
+Ensure that the settings module is properly configured before using this module.
 """
 
 # Standard Library Imports
@@ -16,7 +48,7 @@ from google.cloud.pubsub_v1 import PublisherClient
 from google.cloud.pubsub_v1.types import BatchSettings
 from google.oauth2 import service_account
 
-# File-System Imports
+# File System Imports
 from settings import YDL_OPS, VALID_CHANNEL_REGEX, VALID_PLAYLIST_REGEX, VALID_VIDEO_REGEX
 from helpers import debug
 
