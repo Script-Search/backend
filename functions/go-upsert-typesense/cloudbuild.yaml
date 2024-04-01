@@ -19,3 +19,4 @@ availableSecrets:
   secretManager:
   - versionName: projects/$PROJECT_ID/secrets/Typesense-Env-File/versions/latest
     env: 'TYPESENSE_ENV_FILE'
+    

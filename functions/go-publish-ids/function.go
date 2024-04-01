@@ -38,7 +38,7 @@ var (
 	pubsubClient           *pubsub.Client
 	pubsubClientLazyLoaded sync.Once
 	topic                  *pubsub.Topic
-	topic_name             = "YoutubeURLs"
+	topic_name            = "YoutubeURLs"
 )
 
 type MessagePublishedData struct {
