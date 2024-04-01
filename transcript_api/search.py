@@ -87,7 +87,7 @@ def search_typesense(query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
         query_no_quotes = query_params["q"][1:-1] # pylint: disable=E1136
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
             if not (query_no_quotes in document["transcript"][index].casefold()):
-                document["transcript"][index] += f" {document["transcript"][index + 1]}"
+                document["transcript"][index] += f" {document['transcript'][index + 1]}"
 
             marked_snippet = mark_word(
                 document["transcript"][index], query_no_quotes)
