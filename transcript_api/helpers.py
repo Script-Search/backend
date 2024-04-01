@@ -29,12 +29,9 @@ def debug(message: str) -> None:
 
     Args:
         message (str): The message to print.
-
-    Returns:
-        None
     """
 
-    global LOGGER_CONSOLE # pylint: disable=W0603
+    global LOGGER_CONSOLE # pylint: disable=global-statement
     if not LOGGER_CONSOLE:
         LOGGER_CONSOLE = getLogger("scriptsearch")
         LOGGER_CONSOLE.setLevel(DEBUG)

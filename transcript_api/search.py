@@ -158,14 +158,13 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     """
 
     debug(f"Finding indexes of {query} in transcript")
+    query = query.casefold()
     words = query.split()
     if len(words) > MAX_QUERY_WORD_LIMIT:
         raise ValueError(f"""Query is too long. Please limit to
                          {MAX_QUERY_WORD_LIMIT} words or less.""")
 
-    words = [word.casefold() for word in words]
-
-    return single_word(transcript, query.casefold()) \
+    return single_word(transcript, query) \
         if len(words) == 1 \
         else multi_word(transcript, words)
 
