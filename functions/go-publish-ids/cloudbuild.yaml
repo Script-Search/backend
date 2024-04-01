@@ -10,6 +10,7 @@ steps:
       --entry-point=PubMissingIds \
       --runtime=go122 \
       --region=us-central1 \
+      --source=functions/go-publish-ids \
       --gen2
   env:
   - 'DATABASE_ID=${_DATABASE_ID}'
@@ -17,7 +18,6 @@ steps:
   - 'PROJECT_ID=${_PROJECT_ID}'
   secretEnv: ['CREDENTIALS_JSON', 'CREDENTIALS_PUBSUB_JSON']
   id: "deploy-cloudfunc-go-publish-ids"
-  dir: functions/go-publish-ids
 options:
   logging: CLOUD_LOGGING_ONLY
 availableSecrets:

@@ -1,0 +1,21 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    echo "$$TYPESENSE_ENV_FILE" > .env &&
+    gcloud functions deploy go-upsert-typesense \
+      --entry-point=UpsertToTypesense \
+      --runtime=go122 \
+      --region=us-central1 \
+      --source=functions/go-upsert-typesense \
+      --gen2
+  secretEnv: ['TYPESENSE_ENV_FILE']
+  id: "deploy-cloudfunc-go-upsert-typesense"
+options:
+  logging: CLOUD_LOGGING_ONLY
+availableSecrets:
+  secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/Typesense-Env-File/versions/latest
+    env: 'TYPESENSE_ENV_FILE'

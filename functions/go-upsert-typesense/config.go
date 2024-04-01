@@ -1,9 +1,12 @@
 package function
 
 import (
+	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 var FirestoreCollectionPath string
@@ -18,6 +21,11 @@ var TypesenseBackfillTriggerDocumentInFirestore string = "typesense_sync/backfil
 var TypesenseBackfillBatchSize int = 1000
 
 func InitConfig() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatalf("Error loading .env file: %s", err)
+	}
+
 	FirestoreCollectionPath = os.Getenv("FIRESTORE_COLLECTION_PATH")
 	FirestoreCollectionFields = filterAndTrim(strings.Split(os.Getenv("FIRESTORE_COLLECTION_FIELDS"), ","))
 	ShouldFlattenNestedDocuments = os.Getenv("FLATTEN_NESTED_DOCUMENTS") == "true"
@@ -43,4 +51,12 @@ func filterAndTrim(arr []string) []string {
 		}
 	}
 	return result
+}
+
+func FixDir() {
+	gcloudFuncSourceDir := "serverless_function_source_code"
+	fileInfo, err := os.Stat(gcloudFuncSourceDir)
+	if err == nil && fileInfo.IsDir() {
+		_ = os.Chdir(gcloudFuncSourceDir)
+	}
 }
