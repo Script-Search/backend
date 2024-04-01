@@ -86,9 +86,6 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
             data["video_ids"] = data_temp["video_ids"]
             data["channel_id"] = data_temp["channel_id"]
 
-    if data["video_ids"] is None:
-        data["video_ids"] = []
-
     end = perf_counter()
     data["time"] = end - start
     debug(f"Transcript API finished in {data['time']} seconds")
