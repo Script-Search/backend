@@ -1,6 +1,8 @@
 package function
 
 import (
+	"fmt"
+
 	firestorepb "cloud.google.com/go/firestore/apiv1/firestorepb"
 )
 
@@ -17,7 +19,7 @@ func GetValidWriteStatuses(resp *firestorepb.BatchWriteResponse) int {
 
 func CreateBatchWriteRequest(videoDocs []TranscriptDoc) *firestorepb.BatchWriteRequest {
 	return &firestorepb.BatchWriteRequest{
-		Database: databaseUrl,
+		Database: DatabaseUrl,
 		Writes:   mapDocumentsToWrites(videoDocs),
 	}
 }
@@ -50,16 +52,17 @@ func docToFirestore(doc TranscriptDoc) *firestorepb.Document {
 	}
 
 	return &firestorepb.Document{
+		Name: fmt.Sprintf("%s/documents/%s/%s", DatabaseUrl, documentPath, doc.Id),
 		Fields: map[string]*firestorepb.Value{
-			"id":          {ValueType: &firestorepb.Value_StringValue{StringValue: doc.Id}},
-			"channel_id":  {ValueType: &firestorepb.Value_StringValue{StringValue: doc.ChannelId}},
+			"id":           {ValueType: &firestorepb.Value_StringValue{StringValue: doc.Id}},
+			"channel_id":   {ValueType: &firestorepb.Value_StringValue{StringValue: doc.ChannelId}},
 			"channel_name": {ValueType: &firestorepb.Value_StringValue{StringValue: doc.ChannelName}},
-			"video_id":    {ValueType: &firestorepb.Value_StringValue{StringValue: doc.VideoId}},
-			"duration":    {ValueType: &firestorepb.Value_IntegerValue{IntegerValue: int64(doc.Duration)}},
-			"title":       {ValueType: &firestorepb.Value_StringValue{StringValue: doc.Title}},
-			"upload_date": {ValueType: &firestorepb.Value_IntegerValue{IntegerValue: int64(doc.UploadDate)}},
-			"transcript":  {ValueType: &firestorepb.Value_ArrayValue{ArrayValue: &firestorepb.ArrayValue{Values: transcriptValues}}},
-			"timestamps":  {ValueType: &firestorepb.Value_ArrayValue{ArrayValue: &firestorepb.ArrayValue{Values: timestampValues}}},
+			"video_id":     {ValueType: &firestorepb.Value_StringValue{StringValue: doc.VideoId}},
+			"duration":     {ValueType: &firestorepb.Value_IntegerValue{IntegerValue: int64(doc.Duration)}},
+			"title":        {ValueType: &firestorepb.Value_StringValue{StringValue: doc.Title}},
+			"upload_date":  {ValueType: &firestorepb.Value_IntegerValue{IntegerValue: int64(doc.UploadDate)}},
+			"transcript":   {ValueType: &firestorepb.Value_ArrayValue{ArrayValue: &firestorepb.ArrayValue{Values: transcriptValues}}},
+			"timestamps":   {ValueType: &firestorepb.Value_ArrayValue{ArrayValue: &firestorepb.ArrayValue{Values: timestampValues}}},
 		},
 	}
 }

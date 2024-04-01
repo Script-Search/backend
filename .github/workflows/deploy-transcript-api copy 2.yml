@@ -1,11 +1,11 @@
-name: CI and Trigger Cloud Build on Change for go-firestore-typesense-syncer
+name: CI and Trigger Cloud Build on Change for go-upsert-firestore
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'functions/go-firestore-typesense-syncer/**'
+      - 'functions/go-upsert-firestore/**'
 
 jobs:
   prepare-and-trigger:
@@ -17,6 +17,6 @@ jobs:
       
       - name: Trigger Cloud Build
         run: |
-          curl -f POST "${{ secrets.CLOUD_BULD_GO_FIRESTORE_TYPESENSE_SYNCER_WEBHOOK_URL }}" \
+          curl -f POST "${{ secrets.CLOUD_BULD_GO_UPSERT_FIRESTORE_WEBHOOK_URL }}" \
           -H "Content-Type: application/json" \
           -d '{"branch": "main"}'

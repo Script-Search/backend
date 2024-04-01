@@ -1,0 +1,21 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    echo "$$CREDENTIALS_JSON" > credentials_firebase.json &&
+    gcloud functions deploy go-upsert-firestore \
+      --entry-point=UpsertToFirestore \
+      --runtime=go122 \
+      --region=us-west2 \
+      --gen2
+  secretEnv: ['CREDENTIALS_JSON']
+  id: "deploy-cloudfunc-go-upsert-firestore"
+  dir: functions/go-upsert-firestore
+options:
+  logging: CLOUD_LOGGING_ONLY
+availableSecrets:
+  secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/credentials_json/versions/latest
+    env: 'CREDENTIALS_JSON'
