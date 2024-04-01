@@ -10,7 +10,7 @@ steps:
       --entry-point=transcript_api \
       --runtime=python39 \
       --region=us-central1 \
-      --source=transcript-api \
+      --source=transcript_api \
       --gen2
   secretEnv: ['CREDENTIALS_JSON', 'CREDENTIALS_PUBSUB_JSON']
   id: "deploy-cloudfunc-transcript-api"
