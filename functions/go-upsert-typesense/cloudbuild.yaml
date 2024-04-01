@@ -1,0 +1,16 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    gcloud functions deploy go-upsert-typesense \
+      --entry-point=UpsertToTypesense \
+      --runtime=go122 \
+      --region=us-central1 \
+      --source=. \
+      --gen2
+  id: "deploy-cloudfunc-go-upsert-typesense"
+  dir: functions/go-upsert-typesense
+options:
+  logging: CLOUD_LOGGING_ONLY
