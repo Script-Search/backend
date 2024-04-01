@@ -1,6 +1,30 @@
 """
 This script handles the searching function of the transcript-api.
-It ___.
+It provides functions to search for specific queries within transcript data
+stored in a Typesense database.
+
+Functions:
+- init_typesense(): Initializes the Typesense client.
+- search_typesense(query_params: Dict[str, Any]) -> List[Dict[str, Any]]: Searches for a query in the transcript data.
+- single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]: Finds the indexes of a single-word query in the transcript.
+- multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]: Finds the indexes of a multi-word query in the transcript.
+- find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]: Finds the indexes of the query in the transcript.
+- mark_word(sentence: str, word: str) -> str: Marks every instance of a word within a sentence with <mark> tags.
+
+Dependencies:
+- re: Regular expression operations.
+- typing: Type hints support.
+- typesense: Client for interacting with the Typesense API.
+- helpers.debug: Debugging utility.
+- settings.MAX_QUERY_WORD_LIMIT: Maximum word limit for a query.
+- settings.TYPESENSE_HOST: Hostname of the Typesense server.
+- settings.TYPESENSE_API_KEY: API key for accessing the Typesense server.
+
+Global Variables:
+- TYPESENSE_CLIENT: Initialized Typesense client instance.
+
+Note:
+Ensure that the settings and helpers modules are properly configured before using this module.
 """
 
 import re
@@ -11,9 +35,15 @@ from typesense import Client
 from helpers import debug
 from settings import MAX_QUERY_WORD_LIMIT, TYPESENSE_HOST, TYPESENSE_API_KEY
 
-TYPESENSE_CLIENT = None
+TYPESENSE_CLIENT: Client = None
 
-def init_typesense():
+def init_typesense() -> None:
+    """Initializes the typesense client.
+
+    Returns:
+        None: Nothing
+    """
+
     global TYPESENSE_CLIENT
     if TYPESENSE_CLIENT == None:
         TYPESENSE_CLIENT = Client({
@@ -56,6 +86,9 @@ def search_typesense(query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
 
         query_no_quotes = query_params["q"][1:-1] # pylint: disable=E1136
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
+            if not (query_no_quotes in document["transcript"][index].casefold()):
+                document["transcript"][index] += f" {document["transcript"][index + 1]}"
+
             marked_snippet = mark_word(
                 document["transcript"][index], query_no_quotes)
             data["matches"].append(
@@ -128,14 +161,13 @@ def find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]:
     """
 
     debug(f"Finding indexes of {query} in transcript")
+    query = query.casefold()
     words = query.split()
     if len(words) > MAX_QUERY_WORD_LIMIT:
         raise ValueError(f"""Query is too long. Please limit to
                          {MAX_QUERY_WORD_LIMIT} words or less.""")
 
-    words = [word.casefold() for word in words]
-
-    return single_word(transcript, query.casefold()) \
+    return single_word(transcript, query) \
         if len(words) == 1 \
         else multi_word(transcript, words)
 
@@ -152,5 +184,6 @@ def mark_word(sentence: str, word: str) -> str:
         str: The marked sentence
     """
 
-    pattern = re.compile(re.escape(word), re.IGNORECASE)
+    pattern = re.compile(r"\b" + re.escape(word) + r"\b", re.IGNORECASE)
     return pattern.sub(r"<mark>\g<0></mark>", sentence)
+

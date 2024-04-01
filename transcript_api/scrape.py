@@ -1,32 +1,64 @@
 """
 This script handles the scraping using yt-dlp.
-It extracts metadata information from given urls to send to another function.
+It extracts metadata information from given URLs to send to another function.
+
+Functions:
+- init_ydl_client(): Initializes the YT-DLP client if not already initialized.
+- process_url(url: str) -> Dict[str, Any]: Processes a Universal Reference Link to determine if it's a channel, playlist, or video and returns metadata.
+- get_url_type(url: str) -> URLType: Determines the type of the URL.
+- get_channel_videos(channel_url: str) -> Tuple[str, List[str], List[str]]: Gets video URLs from a channel.
+- get_playlist_videos(playlist_url: str) -> Tuple[List[str], List[str]]: Gets video URLs from a playlist.
+- get_video(url: str) -> str: Gets the video ID from a URL.
+
+Global Variables:
+- YDL_CLIENT: Initialized YT-DLP client.
+- PUBLISHER: PublisherClient instance for publishing messages.
+- TOPIC_PATH: Path to the Pub/Sub topic.
+
+Dependencies:
+- re: Regular expression operations.
+- json: JSON encoder and decoder.
+- enum: Support for enumerations.
+- typing: Type hints support.
+- io.StringIO: Implements an in-memory file-like object.
+- yt_dlp.YoutubeDL: Download videos from YouTube-like sites.
+- google.cloud.pubsub_v1.PublisherClient: Publisher client for Google Cloud Pub/Sub.
+- google.cloud.pubsub_v1.types.BatchSettings: Batch settings for publishing messages.
+- google.oauth2.service_account: Service account credentials.
+- settings.YDL_OPS: Options for YT-DLP client.
+- settings.VALID_CHANNEL_REGEX: Regular expression pattern for valid channel URLs.
+- settings.VALID_PLAYLIST_REGEX: Regular expression pattern for valid playlist URLs.
+- settings.VALID_VIDEO_REGEX: Regular expression pattern for valid video URLs.
+- helpers.debug: Debugging utility.
+
+Note:
+Ensure that the settings module is properly configured before using this module.
 """
 
 # Standard Library Imports
 import re
 import json
 from enum import Enum
-from typing import Any, Dict, List, Tuple
+from typing import Any, Optional, Dict, List, Tuple
 from io import StringIO
 
 # Third-Party Imports
 from yt_dlp import YoutubeDL
-from google.cloud import pubsub_v1
+from google.cloud.pubsub_v1 import PublisherClient
 from google.cloud.pubsub_v1.types import BatchSettings
 from google.oauth2 import service_account
 
-# File-System Imports
+# File System Imports
 from settings import YDL_OPS, VALID_CHANNEL_REGEX, VALID_PLAYLIST_REGEX, VALID_VIDEO_REGEX
 from helpers import debug
 
 BATCH_SETTINGS = BatchSettings(
-    max_messages=1,  # Publish after 1 message
-    max_latency=0,   # Try to publish instantly
+    max_messages    = 1,    # Publish after 1 message
+    max_latency     = 0,    # Try to publish instantly
 )
 
-YDL_CLIENT = None
-PUBLISHER = None
+YDL_CLIENT: YoutubeDL = None
+PUBLISHER: PublisherClient = None
 TOPIC_PATH = None
 
 class URLType(Enum):
@@ -58,8 +90,8 @@ def process_url(url: str) -> Dict[str, Any]:
     url_type = get_url_type(url)
 
     data = {
-        "video_ids": [],
-        "channel_id": None,
+        "video_ids": List[str],
+        "channel_id": Optional[str],
     }
 
     video_ids = []
@@ -79,7 +111,7 @@ def process_url(url: str) -> Dict[str, Any]:
             ss.write(f'`{video_id}`,')
         ss.write("]")
         data["video_ids"] = ss.getvalue()
-        data["video_ids"] = data["video_ids"].replace(",]", "]") # pylint: disable=E1101
+        data["video_ids"] = str(data["video_ids"]).replace(",]", "]") # pylint: disable=E1101
 
     elif url_type == URLType.CHANNEL:
         data["channel_id"], video_urls, video_ids = get_channel_videos(url)
@@ -90,7 +122,7 @@ def process_url(url: str) -> Dict[str, Any]:
     if PUBLISHER is None:
         cred = service_account.Credentials.from_service_account_file(
             "credentials_pub_sub.json")
-        PUBLISHER = pubsub_v1.PublisherClient(credentials=cred, batch_settings=BATCH_SETTINGS)
+        PUBLISHER = PublisherClient(credentials=cred, batch_settings=BATCH_SETTINGS)
         TOPIC_PATH = PUBLISHER.topic_path("ScriptSearch", "Test-Go-Url-Check")
     
     byteString = json.dumps(video_ids).encode("utf-8")
@@ -116,7 +148,7 @@ def get_url_type(url: str) -> URLType:
         return URLType.CHANNEL
     raise ValueError(f"Invalid URL: {url}")
 
-def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
+def get_channel_videos(channel_url: str) -> Tuple[str, List[str], List[str]]:
     """Get the video urls from a channel.
 
     Args:
@@ -126,7 +158,7 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
         List[str]: The video URLs.
     """
 
-    channel = YDL_CLIENT.extract_info(channel_url, download=False)
+    channel: Dict[str, Any] = YDL_CLIENT.extract_info(channel_url, download=False)
 
     if not channel["entries"]:
         raise ValueError(f"Channel {channel_url} has no videos.")
@@ -144,7 +176,7 @@ def get_channel_videos(channel_url: str) -> Tuple[str, List[str]]:
 
     return channel["channel_id"], video_urls, video_ids
 
-def get_playlist_videos(playlist_url: str) -> List[str]:
+def get_playlist_videos(playlist_url: str) -> Tuple[List[str], List[str]]:
     """Get the video urls from a playlist.
 
     Args:
@@ -174,3 +206,4 @@ def get_video(url: str) -> str:
     """
     info = YDL_CLIENT.extract_info(url, download=False)
     return info["id"]
+
