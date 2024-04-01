@@ -1,14 +1,16 @@
-module functions.com/firestore-typesense-syncer
+module functions.com/go-upsert-typesense
 
 go 1.22.0
 
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
 	github.com/cloudevents/sdk-go/v2 v2.15.2
+	github.com/joho/godotenv v1.5.1
 	github.com/typesense/typesense-go v1.0.0
 )
 
 require (
+	cloud.google.com/go/functions v1.15.3 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/deepmap/oapi-codegen v1.12.3 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect

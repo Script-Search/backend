@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/cloudevents/sdk-go/v2/event"
@@ -32,9 +33,10 @@ type PubSubMessage struct {
 }
 
 func init() {
-	functions.CloudEvent("UpsertToTypesense", upsertToTypesense)
+	FixDir()
 	InitConfig()
 	InitTypesense()
+	functions.CloudEvent("UpsertToTypesense", upsertToTypesense)
 }
 
 func upsertToTypesense(ctx context.Context, e event.Event) error {
@@ -56,6 +58,9 @@ func upsertToTypesense(ctx context.Context, e event.Event) error {
 		documents[i] = doc
 	}
 
+	fmt.Printf("batch write size: %d\n", len(videoDocs))
+
+	t := time.Now()
 	params := &api.ImportDocumentsParams{
 		Action: pointer.String("upsert"),
 		BatchSize: pointer.Int(len(documents)),
@@ -64,5 +69,6 @@ func upsertToTypesense(ctx context.Context, e event.Event) error {
 	if err != nil {
 		return fmt.Errorf("batch upsert error: %s", err.Error())
 	}
+	fmt.Printf("bulk import took %s\n", time.Since(t))
 	return nil
 }
