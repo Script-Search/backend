@@ -41,6 +41,7 @@ import re
 import json
 from enum import Enum
 from io import StringIO
+from typing import List
 
 # Third-Party Imports
 from yt_dlp import YoutubeDL
@@ -75,7 +76,7 @@ def init_ydl_client():
     if not YDL_CLIENT:
         YDL_CLIENT = YoutubeDL(YDL_OPS)
 
-def process_url(url: str) -> dict[str, list[str]|str]:
+def process_url(url: str) -> dict[str, list[str]|str|None]:
     """
     Takes a Universal Reference Link, 
     determines if the url is a channel or a playlist, 
@@ -89,9 +90,9 @@ def process_url(url: str) -> dict[str, list[str]|str]:
     init_ydl_client()
     url_type = get_url_type(url)
 
-    data = {
-        "video_ids": list[str],
-        "channel_id": str|None,
+    data: dict[str, str] = {
+        "video_ids": "",
+        "channel_id": "",
     }
 
     video_ids = []

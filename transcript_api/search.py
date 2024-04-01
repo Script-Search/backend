@@ -113,9 +113,6 @@ def single_word(transcript: list[dict[str, list[dict[str, list[str]|str]]]], que
 
     indexes = []
     for i, snippet in enumerate(transcript):
-        if i == 0:
-            debug(snippet)
-
         casefolded = [word.casefold() for word in snippet["matched_tokens"]]
         if query in casefolded:
             debug(f"Snippet: {snippet}")
