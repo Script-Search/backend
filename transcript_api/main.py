@@ -4,7 +4,6 @@ It processes incoming requests and sends them to the appropriate functions.
 """
 from __future__ import annotations
 
-
 # Standard Library Imports
 import io
 from time import perf_counter
@@ -72,7 +71,6 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
     else: # Case when we only scraping is happening
-        url: str = ""
         if request_args and "url" in request_args:
             url = str(request_args["url"])
         if request_json and "url" in request_json:

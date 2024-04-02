@@ -9,10 +9,10 @@ steps:
       --entry-point=UpsertToTypesense \
       --runtime=go122 \
       --region=us-central1 \
-      --source=functions/go-upsert-typesense \
       --gen2
   secretEnv: ['TYPESENSE_ENV_FILE']
   id: "deploy-cloudfunc-go-upsert-typesense"
+  dir: functions/go-upsert-typesense
 options:
   logging: CLOUD_LOGGING_ONLY
 availableSecrets:

@@ -21,8 +21,6 @@ import (
 )
 
 var (
-	ctx = context.Background()
-
 	// Environment Globals; setup in Cloud Build Triggers
 	projectId    = os.Getenv("PROJECT_ID")
 	databaseId   = os.Getenv("DATABASE_ID")
@@ -38,7 +36,7 @@ var (
 	pubsubClient           *pubsub.Client
 	pubsubClientLazyLoaded sync.Once
 	topic                  *pubsub.Topic
-	topic_name            = "YoutubeURLs"
+	topic_name             = "YoutubeURLs"
 )
 
 type MessagePublishedData struct {
@@ -49,7 +47,7 @@ type PubSubMessage struct {
 	Data []byte `json:"data"`
 }
 
-func initFirestore() {
+func initFirestore(ctx context.Context) {
 	firestoreClientLazyLoaded.Do(func() {
 		var err error
 		sa := option.WithCredentialsFile("credentials_firebase.json")
@@ -60,7 +58,7 @@ func initFirestore() {
 	})
 }
 
-func initPubSub() {
+func initPubSub(ctx context.Context) {
 	pubsubClientLazyLoaded.Do(func() {
 		var err error
 		sa := option.WithCredentialsFile("credentials_pub_sub.json")
@@ -84,7 +82,7 @@ func mapIdsToDocuments(videoIds []string) []string {
 	return documents
 }
 
-func pubMissingVideoUrl(videoIds []string) {
+func pubMissingVideoUrl(ctx context.Context, videoIds []string) {
 	req := &firestorepb.BatchGetDocumentsRequest{
 		Database:  databaseUrl,
 		Documents: mapIdsToDocuments(videoIds),
@@ -131,8 +129,8 @@ func pubMissingVideoUrl(videoIds []string) {
 }
 
 func pubMissingIds(ctx context.Context, e event.Event) error {
-	initFirestore()
-	initPubSub()
+	initFirestore(ctx)
+	initPubSub(ctx)
 
 	// Process the msg and convert to golang slice of strings
 	var msg MessagePublishedData
@@ -147,7 +145,7 @@ func pubMissingIds(ctx context.Context, e event.Event) error {
 	}
 
 	t := time.Now()
-	pubMissingVideoUrl(videoIds)
+	pubMissingVideoUrl(ctx, videoIds)
 	log.Printf("handler took %s", time.Since(t))
 	return nil
 }
