@@ -19,4 +19,3 @@ availableSecrets:
   secretManager:
   - versionName: projects/$PROJECT_ID/secrets/credentials_json/versions/latest
     env: 'CREDENTIALS_JSON'
-    
