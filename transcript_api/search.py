@@ -1,4 +1,16 @@
+"""
+This module provides functions for searching and marking words in transcript data using Typesense.
 
+It includes functions for initializing the Typesense client, searching for queries in transcript data,
+finding indexes of words or phrases in the transcript, and marking specific words within a sentence.
+
+Dependencies:
+- typesense.Client: a Python client for the Typesense API
+- helpers.debug: a function for debugging purposes
+- settings.MAX_QUERY_WORD_LIMIT: the maximum number of words allowed in a query
+- settings.TYPESENSE_HOST: the host URL for the Typesense server
+- settings.TYPESENSE_API_KEY: the API key for accessing the Typesense server
+"""
 
 from __future__ import annotations
 
