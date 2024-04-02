@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import re
 
-from typing import get_type_hints
 from typesense import Client
 
 from helpers import debug
@@ -55,7 +54,7 @@ def init_typesense() -> None:
             "connection_timeout_seconds": 4
         })
 
-def search_typesense(query_params: dict[str, str|int|bool]) -> list[dict[str, str|list[dict[str, str|int]]]]:
+def search_typesense(query_params: dict[str, object]) -> list[dict[str, str|list[dict[str, str|int]]]]:
     """Searches for a query in the transcript data.
 
     Args:
@@ -99,7 +98,7 @@ def search_typesense(query_params: dict[str, str|int|bool]) -> list[dict[str, st
         result.append(data)
     return result
 
-def single_word(transcript: list[dict[str, list[dict[str, str]]]], query: str) -> list[int]:
+def single_word(transcript: list[dict[str, str|list[str]]], query: str) -> list[int]:
     """
     Finds the indexes of the query in the transcript
         topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
@@ -120,7 +119,7 @@ def single_word(transcript: list[dict[str, list[dict[str, str]]]], query: str) -
             indexes.append(i)
     return indexes
 
-def multi_word(transcript: list[dict[str, list[dict[str, list[str]|str]]]], words: list[str]) -> list[int]:
+def multi_word(transcript: list[dict[str, str|list[str]]], words: list[str]) -> list[int]:
     """
     Finds the indexes of the query in the transcript
 
@@ -146,7 +145,7 @@ def multi_word(transcript: list[dict[str, list[dict[str, list[str]|str]]]], word
                     indexes.append(i)
     return indexes
 
-def find_indexes(transcript: list[dict[str, list[dict[str, list[str]|str]]]], query: str) -> list[int]:
+def find_indexes(transcript: list[dict[str, str|list[str]]], query: str) -> list[int]:
     """
     Finds the indexes of the query in the transcript
 

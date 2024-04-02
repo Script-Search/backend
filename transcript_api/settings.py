@@ -31,9 +31,10 @@ Ensure that the environment variables are properly configured before using this 
 from __future__ import annotations
 
 from os import environ
+from typing import Literal
 
 # Config Settings
-DEBUG_FLAG: bool = True
+DEBUG_FLAG: Literal[True] = True
 
 # YT-DLP Settings
 MAX_VIDEO_LIMIT: int = 250
@@ -63,7 +64,7 @@ TYPESENSE_SEARCH_PARAMS = {
     "page": 1,
     "per_page": 250,
     "prefix": False,
-    "q": None,
+    "q": "",
     "query_by": "transcript",
     "sort_by": "upload_date:desc",
     "filter_by": "",

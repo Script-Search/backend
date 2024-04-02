@@ -2,12 +2,11 @@
 This script is the main entry point for the Cloud Function.
 It processes incoming requests and sends them to the appropriate functions.
 """
+from __future__ import annotations
 
 # Standard Library Imports
 import io
 from time import perf_counter
-import types
-from typing import get_args, get_type_hints
 
 # Third-Party Imports
 import functions_framework
@@ -44,7 +43,7 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
     request_json = request.get_json(silent=True) or {"empty": True}
     request_args = request.args or {"empty": True}
 
-    data: dict[str, str|int|float|list[str]|None] = {
+    data = {
         "status": "success",
         "MAX_QUERY_WORD_LIMIT": MAX_QUERY_WORD_LIMIT,
         "time": 0,
@@ -71,12 +70,12 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
             data["hits"] = search_typesense(copy_search_param)
         except ValueError as e:
             return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
-    else: # Case when only scraping is happening
-        url = None
+    else: # Case when we only scraping is happening
+        url = ""
         if request_args and "url" in request_args:
-            url = request_args["url"]
+            url = str(request_args["url"])
         if request_json and "url" in request_json:
-            url = request_json.get("url")
+            url = request_json.get("url", "")
 
         if url:
             data_temp = {}
@@ -90,12 +89,5 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
     end = perf_counter()
     data["time"] = end - start
     debug(f"Transcript API finished in {data['time']} seconds")
-
-    for key, value in data.items():
-        t = type(value)
-        if t == types.UnionType:
-            debug(f"{key} : {get_args(value)}")
-        else:
-            debug(f"{key} : {t}")
 
     return (jsonify(data), 200, API_RESPONSE_HEADERS)
