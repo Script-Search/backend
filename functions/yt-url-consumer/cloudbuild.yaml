@@ -4,6 +4,7 @@ steps:
   args:
   - '-c'
   - |
+    echo "$$CREDENTIALS_JSON" > credentials.json &&
     echo "$$CREDENTIALS_PUBSUB_JSON" > credentials_pub_sub.json &&
     gcloud functions deploy yt-url-consumer \
       --trigger-topic=YoutubeURLs \
@@ -11,12 +12,14 @@ steps:
       --runtime=python39 \
       --region=us-central1 \
       --gen2
-  secretEnv: ['CREDENTIALS_PUBSUB_JSON']
+  secretEnv: ['CREDENTIALS_JSON', 'CREDENTIALS_PUBSUB_JSON']
   id: "deploy-cloudfunc-yt-url-consumer"
   dir: functions/yt-url-consumer
 options:
   logging: CLOUD_LOGGING_ONLY
 availableSecrets:
   secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/credentials_json/versions/latest
+    env: 'CREDENTIALS_JSON'
   - versionName: projects/$PROJECT_ID/secrets/credentials_pub_sub_json/versions/latest
     env: 'CREDENTIALS_PUBSUB_JSON'

@@ -1,14 +1,13 @@
 import base64
 import functions_framework
 import io
-import json
 import yt_dlp
 
 from lxml import etree
 from typing import Tuple, List
 
 # File-System Imports; Use modules like singletons to ensure only one instance created
-from pubsub import initialize_pubsub, publish
+from firestore import initialize_firestore, upsert
 from poolmanager import initialize_req_pool, get_ttml_response
 
 YDL_OPTS = {
@@ -96,7 +95,7 @@ def insert_transcript(info_json: dict) -> bool:
 
     try:
         initialize_req_pool()
-        initialize_pubsub() # TODO: Make this asynchronous somehow...
+        initialize_firestore() # TODO: Make this asynchronous somehow...
 
         video_id = info_json["id"]
         channel_id = info_json["channel_id"]
@@ -118,7 +117,7 @@ def insert_transcript(info_json: dict) -> bool:
             raise Exception(f"Unable to fetch ttml_url, {response.status} code.")
 
         parsed_transcript, timestamps = parse_ttml(response.data)
-        publish([{
+        upsert({
             "video_id": video_id,
             "channel_id": channel_id,
             "channel_name": channel_name,
@@ -127,7 +126,7 @@ def insert_transcript(info_json: dict) -> bool:
             "title": title,
             "transcript": parsed_transcript,
             "timestamps": timestamps
-        }])
+        })
         return True
     except Exception as e:
         print(f"Error inserting transcript data: {e}")
@@ -143,8 +142,7 @@ def transcript_downloader(cloud_event: functions_framework.CloudEvent) -> None:
     Returns:
         None
     """
-    URLs = json.loads(base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8"))
-    URL = URLs[0] # TODO: Add client-side batching to handle parallel URLs in the future
+    URL = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
 
     if "watch" not in URL:  # TODO: Ensure inputted URL is a singular video
         print("watch not in URL")
