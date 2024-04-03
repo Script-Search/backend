@@ -1,7 +1,7 @@
 from unittest import TestCase, main
 from unittest.mock import patch
 
-from scrape import URLType, init_ydl_client, get_url_type, get_channel_videos, get_playlist_videos
+from scrape import URLType, init_ydl_client, get_url_type, get_channel_videos, get_playlist_videos, get_video, process_url
 
 class TestGetURLType(TestCase):
     @patch('scrape.get_url_type')
@@ -35,15 +35,9 @@ class TestExtractVideos(TestCase):
         self.assertIsInstance(channel_id, str)
         self.assertEqual(channel_id, expected_channel_id)
 
-        # self.assertIsInstance(video_urls, list)
-        # self.assertIsInstance(video_urls[0], str)
-        # self.assertEqual(len(video_urls), 250)
-
         self.assertIsInstance(video_ids, list)
         self.assertIsInstance(video_ids[0], str)
         self.assertEqual(len(video_ids), 250)
-
-        # self.assertEqual(len(video_urls), len(video_ids))
 
     @patch('scrape.get_playlist_videos')
     def test_get_playlist_videos(self, mock_type):
@@ -53,15 +47,44 @@ class TestExtractVideos(TestCase):
         init_ydl_client()
         video_ids = get_playlist_videos(playlist_url)
 
-        # self.assertIsInstance(video_urls, list)
-        # self.assertIsInstance(video_urls[0], str)
-        # self.assertEqual(len(video_urls), 72)
-
         self.assertIsInstance(video_ids, list)
         self.assertIsInstance(video_ids[0], str)
         self.assertEqual(len(video_ids), 72)
 
-        # self.assertEqual(len(video_urls), len(video_ids))
+    @patch('scrape.get_video')
+    def test_get_video(self, mock_type):
+        video_url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        mock_type.return_value = str
+
+        self.assertEqual(get_video(video_url), "jNQXAC9IVRw")
+
+class TestProcessUrl(TestCase):
+    @patch('scrape.process_url')
+    def test_process_url_playlist(self, mock_type):
+        playlist_url = "https://www.youtube.com/playlist?list=PLBRObSmbZluRiGDWMKtOTJiLy3q0zIfd7"
+        mock_type.return_value = dict
+
+        result = process_url(playlist_url)
+
+        self.assertTrue("video_ids" in result)
+        self.assertIsNotNone(result["video_ids"])
+        self.assertEqual(len(result["video_ids"]), 1009)
+
+        self.assertTrue("channel_id" in result)
+        self.assertIsNone(result["channel_id"])
+
+    @patch('scrape.process_url')
+    def test_process_url_channel(self, mock_type):
+        channel_url = "https://www.youtube.com/@jacksepticeye"
+        mock_type.return_value = dict
+
+        result = process_url(channel_url)
+
+        self.assertTrue("video_ids" in result)
+        self.assertIsNone(result["video_ids"])
+
+        self.assertTrue("channel_id" in result)
+        self.assertEqual(result["channel_id"], "UCYzPXprvl5Y-Sf0g4vX-m6g")
 
 if __name__ == '__main__':
     main()
