@@ -2,6 +2,7 @@ from unittest import TestCase, main
 from unittest.mock import patch
 
 from scrape import URLType, init_ydl_client, get_url_type, get_channel_videos, get_playlist_videos, get_video, process_url
+from settings import MAX_VIDEO_LIMIT
 
 class TestGetURLType(TestCase):
     @patch('scrape.get_url_type')
@@ -37,7 +38,7 @@ class TestExtractVideos(TestCase):
 
         self.assertIsInstance(video_ids, list)
         self.assertIsInstance(video_ids[0], str)
-        self.assertEqual(len(video_ids), 250)
+        self.assertEqual(len(video_ids), MAX_VIDEO_LIMIT)
 
     @patch('scrape.get_playlist_videos')
     def test_get_playlist_videos(self, mock_type):
@@ -68,7 +69,7 @@ class TestProcessUrl(TestCase):
 
         self.assertTrue("video_ids" in result)
         self.assertIsNotNone(result["video_ids"])
-        self.assertEqual(len(result["video_ids"]), 1009)
+        self.assertEqual(len(result["video_ids"].split(",")), 72)
 
         self.assertTrue("channel_id" in result)
         self.assertIsNone(result["channel_id"])
