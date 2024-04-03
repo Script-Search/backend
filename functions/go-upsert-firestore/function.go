@@ -12,7 +12,6 @@ import (
 )
 
 type TranscriptDoc struct {
-	Id          string   `json:"id"`
 	ChannelId   string   `json:"channel_id"`
 	ChannelName string   `json:"channel_name"`
 	VideoId     string   `json:"video_id"`
@@ -42,7 +41,7 @@ func upsertToFirestore(ctx context.Context, e event.Event) error {
 	// Process the msg and convert to golang slice of strings
 	var msg MessagePublishedData
 	if err := e.DataAs(&msg); err != nil {
-		return fmt.Errorf("event.DataAs: %v", err)
+		return fmt.Errorf("event.DataAs error: %v", err)
 	}
 
 	jsonString := string(msg.Message.Data) // Automatically decoded from base64
@@ -51,17 +50,16 @@ func upsertToFirestore(ctx context.Context, e event.Event) error {
 		return fmt.Errorf("json unmarshal error: %v", err)
 	}
 
-	log.Printf("batch write size: %d\n", len(videoDocs))
-	batchWriteVideoDocs(ctx, videoDocs)
-	return nil
+	return batchWriteVideoDocs(ctx, videoDocs)
 }
 
-func batchWriteVideoDocs(ctx context.Context, videoDocs []TranscriptDoc) {
+func batchWriteVideoDocs(ctx context.Context, videoDocs []TranscriptDoc) error {
 	t := time.Now()
 	resp, err := FirestoreClient.BatchWrite(ctx, CreateBatchWriteRequest(videoDocs))
 	if err != nil {
-		log.Fatalln("Error occured in batch write:", err)
+		return fmt.Errorf("error occured in batch write: %v", err)
 	}
 	log.Printf("batch write took %s\n", time.Since(t))
 	log.Printf("batch writes ok statuses: %d/%d\n", GetValidWriteStatuses(resp), len(videoDocs))
+	return nil
 }
