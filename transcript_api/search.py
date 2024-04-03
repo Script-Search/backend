@@ -81,6 +81,11 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str|list
             marked_snippet = document["transcript"][index]
             for word in words:
                 marked_snippet = mark_word(marked_snippet, word)
+
+            for i in range(2, MAX_QUERY_WORD_LIMIT):
+                marked_snippet = marked_snippet.replace(r"<mark>" * i, "<mark>")
+                marked_snippet = marked_snippet.replace(r"</mark>" * i, "</mark>")
+
             data["matches"].append(
                 {"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
         
