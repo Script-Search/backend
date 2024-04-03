@@ -28,7 +28,7 @@ func InitFirestore(ctx context.Context) {
 		sa := option.WithCredentialsFile("credentials_firebase.json")
 		FirestoreClient, err = firestore.NewClient(ctx, sa)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("firestore init error: %v", err)
 		}
 	})
 }
