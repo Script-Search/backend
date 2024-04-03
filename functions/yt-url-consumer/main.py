@@ -119,11 +119,12 @@ def insert_transcript(info_json: dict) -> bool:
 
         parsed_transcript, timestamps = parse_ttml(response.data)
         publish([{
+            "id": video_id,
             "video_id": video_id,
             "channel_id": channel_id,
             "channel_name": channel_name,
             "duration": int(duration),
-            "upload_date": upload_date,  # Maybe defer this to a later function
+            "upload_date": upload_date,
             "title": title,
             "transcript": parsed_transcript,
             "timestamps": timestamps
