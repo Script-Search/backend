@@ -75,7 +75,7 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str|list
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
             transcript_casefoled = document["transcript"][index].casefold()
 
-            if num_words != 1 and not (query_no_quotes in transcript_casefoled):
+            if num_words != 1 and index + 1 < len(document["transcript"]) and not (query_no_quotes in transcript_casefoled):
                 document["transcript"][index] += f" {document['transcript'][index + 1]}"
 
             marked_snippet = document["transcript"][index]
