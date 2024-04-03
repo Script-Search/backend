@@ -1,7 +1,29 @@
 """
-This script is the main entry point for the Cloud Function.
-It processes incoming requests and sends them to the appropriate functions.
+This module contains an HTTP Cloud Function for handling transcript requests.
+It includes functionality to process incoming HTTP requests containing transcript data, 
+either for searching or scraping.
+
+The function `transcript_api` handles these requests, 
+extracting necessary data from the request payload or query parameters, 
+and performs either searching or scraping operations based on the provided data.
+
+The function returns a JSON response containing information about the operation status, 
+maximum query word limit, execution time, channel ID, video IDs, and search hits (if applicable).
+
+Dependencies:
+- functions_framework
+- flask
+- settings
+- helpers
+- scrape
+- search
+
+Usage:
+The function can be deployed as an HTTP Cloud Function and accessed via HTTP requests. 
+It accepts JSON payloads with optional parameters such as 
+`channel_id`, `video_ids`, and `query` for searching, or `url` for scraping.
 """
+
 from __future__ import annotations
 
 # Standard Library Imports

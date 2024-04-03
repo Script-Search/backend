@@ -1,31 +1,17 @@
 """
-This script handles the searching function of the transcript-api.
-It provides functions to search for specific queries within transcript data
-stored in a Typesense database.
+This module provides functions for searching and marking words in transcript data using Typesense.
 
-Functions:
-- init_typesense(): Initializes the Typesense client.
-- search_typesense(query_params: Dict[str, Any]) -> List[Dict[str, Any]]: Searches for a query in the transcript data.
-- single_word(transcript: List[Dict[str, Any]], query: str) -> List[int]: Finds the indexes of a single-word query in the transcript.
-- multi_word(transcript: List[Dict[str, Any]], words: List[str]) -> List[int]: Finds the indexes of a multi-word query in the transcript.
-- find_indexes(transcript: List[Dict[str, Any]], query: str) -> List[int]: Finds the indexes of the query in the transcript.
-- mark_word(sentence: str, word: str) -> str: Marks every instance of a word within a sentence with <mark> tags.
+It includes functions for initializing the Typesense client, searching for queries in transcript data,
+finding indexes of words or phrases in the transcript, and marking specific words within a sentence.
 
 Dependencies:
-- re: Regular expression operations.
-- typing: Type hints support.
-- typesense: Client for interacting with the Typesense API.
-- helpers.debug: Debugging utility.
-- settings.MAX_QUERY_WORD_LIMIT: Maximum word limit for a query.
-- settings.TYPESENSE_HOST: Hostname of the Typesense server.
-- settings.TYPESENSE_API_KEY: API key for accessing the Typesense server.
-
-Global Variables:
-- TYPESENSE_CLIENT: Initialized Typesense client instance.
-
-Note:
-Ensure that the settings and helpers modules are properly configured before using this module.
+- typesense.Client: a Python client for the Typesense API
+- helpers.debug: a function for debugging purposes
+- settings.MAX_QUERY_WORD_LIMIT: the maximum number of words allowed in a query
+- settings.TYPESENSE_HOST: the host URL for the Typesense server
+- settings.TYPESENSE_API_KEY: the API key for accessing the Typesense server
 """
+
 from __future__ import annotations
 
 import re
@@ -84,18 +70,20 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str|list
         }
 
         query_no_quotes = str(query_params["q"])[1:-1]
+        num_words = len(query_no_quotes.split())
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
-            if not (query_no_quotes in document["transcript"][index].casefold()):
+            if num_words != 1 and not (query_no_quotes in document["transcript"][index].casefold()):
                 document["transcript"][index] += f" {document['transcript'][index + 1]}"
 
             marked_snippet = mark_word(
                 document["transcript"][index], query_no_quotes)
             data["matches"].append(
                 {"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
+        
+        if data["matches"]:
+            result.append(data)
 
         debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
-
-        result.append(data)
     return result
 
 def single_word(transcript: list[dict[str, str|list[str]]], query: str) -> list[int]:
@@ -112,7 +100,7 @@ def single_word(transcript: list[dict[str, str|list[str]]], query: str) -> list[
 
     indexes = []
     for i, snippet in enumerate(transcript):
-        casefolded = [word.casefold() for word in snippet["matched_tokens"]] 
+        casefolded = [word.casefold() for word in snippet["matched_tokens"]]
         if query in casefolded:
             debug(f"Snippet: {snippet}")
 

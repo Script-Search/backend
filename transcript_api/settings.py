@@ -1,40 +1,31 @@
 """
-This script holds the settings used in this directory.
-It keeps descriptive variable names to avoid verbose documentation.
+Module for configuring various settings related to YouTube downloading, Typesense search, and API responses.
 
-Config Settings:
-- DEBUG_FLAG: Flag indicating whether debug mode is enabled.
+Future imports:
+    - `annotations` from `__future__`
 
-YT-DLP Settings:
-- MAX_VIDEO_LIMIT: Maximum number of videos to retrieve.
-- VALID_VIDEO_REGEX: Regular expression pattern for valid video URLs.
-- VALID_PLAYLIST_REGEX: Regular expression pattern for valid playlist URLs.
-- VALID_CHANNEL_REGEX: Regular expression pattern for valid channel URLs.
-- YDL_OPS: Options for YT-DLP client.
+Imports:
+    - `environ` from `os`
 
-TYPESENSE Settings:
-- MAX_QUERY_WORD_LIMIT: Maximum number of words allowed in a query.
-- TYPESENSE_API_KEY: API key for accessing Typesense (from environment variable).
-- TYPESENSE_HOST: Hostname of the Typesense server (from environment variable).
-- TYPESENSE_SEARCH_PARAMS: Parameters for Typesense search.
-
-API Settings:
-- API_RESPONSE_HEADERS: Headers for API responses.
-
-Dependencies:
-- os.environ: Environment variables.
-- typing: Type hints support.
-
-Note:
-Ensure that the environment variables are properly configured before using this module.
+Constants:
+    - `DEBUG_FLAG`: A literal indicating debugging status.
+    - `MAX_VIDEO_LIMIT`: Maximum limit for video downloads.
+    - `VALID_VIDEO_REGEX`: Regular expression pattern for validating video URLs.
+    - `VALID_PLAYLIST_REGEX`: Regular expression pattern for validating playlist URLs.
+    - `VALID_CHANNEL_REGEX`: Regular expression pattern for validating channel URLs.
+    - `YDL_OPS`: Dictionary containing options for YT-DLP.
+    - `MAX_QUERY_WORD_LIMIT`: Maximum limit for query words.
+    - `TYPESENSE_API_KEY`: Typesense API key.
+    - `TYPESENSE_HOST`: Typesense host URL.
+    - `TYPESENSE_SEARCH_PARAMS`: Parameters for Typesense search.
+    - `API_RESPONSE_HEADERS`: Headers for API responses.
 """
 from __future__ import annotations
 
 from os import environ
-from typing import Literal
 
 # Config Settings
-DEBUG_FLAG: Literal[True] = True
+DEBUG_FLAG = True
 
 # YT-DLP Settings
 MAX_VIDEO_LIMIT: int = 250
