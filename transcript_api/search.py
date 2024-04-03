@@ -82,7 +82,7 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str|list
             for word in words:
                 marked_snippet = mark_word(marked_snippet, word)
 
-            for i in range(2, MAX_QUERY_WORD_LIMIT):
+            for i in range(MAX_QUERY_WORD_LIMIT, 1, -1):
                 marked_snippet = marked_snippet.replace(r"<mark>" * i, "<mark>")
                 marked_snippet = marked_snippet.replace(r"</mark>" * i, "</mark>")
 
