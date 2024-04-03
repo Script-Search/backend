@@ -27,6 +27,8 @@ from os import environ
 # Config Settings
 DEBUG_FLAG = True
 
+BANNED_CHARS: list[str] = ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "=", "+", "[", "]", "{", "}", "\\", "|", ":", ";", "<", ">", ",", ".", "?", "/", "\""]
+
 # YT-DLP Settings
 MAX_VIDEO_LIMIT: int = 250
 VALID_VIDEO_REGEX: str      = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
