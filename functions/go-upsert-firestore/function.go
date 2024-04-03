@@ -12,7 +12,6 @@ import (
 )
 
 type TranscriptDoc struct {
-	Id          string   `json:"id"`
 	ChannelId   string   `json:"channel_id"`
 	ChannelName string   `json:"channel_name"`
 	VideoId     string   `json:"video_id"`
