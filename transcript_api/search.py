@@ -70,20 +70,24 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str|list
         }
 
         query_no_quotes = str(query_params["q"])[1:-1]
-        num_words = len(query_no_quotes.split())
+        words = query_no_quotes.split()
+        num_words = len(words)
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
-            if num_words != 1 and not (query_no_quotes in document["transcript"][index].casefold()):
+            transcript_casefoled = document["transcript"][index].casefold()
+
+            if num_words != 1 and not (query_no_quotes in transcript_casefoled):
                 document["transcript"][index] += f" {document['transcript'][index + 1]}"
 
-            marked_snippet = mark_word(
-                document["transcript"][index], query_no_quotes)
+            marked_snippet = document["transcript"][index]
+            for word in words:
+                marked_snippet = mark_word(marked_snippet, word)
             data["matches"].append(
                 {"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
         
         if data["matches"]:
             result.append(data)
+            debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
-        debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
     return result
 
 def single_word(transcript: list[dict[str, str|list[str]]], query: str) -> list[int]:
@@ -120,16 +124,16 @@ def multi_word(transcript: list[dict[str, str|list[str]]], words: list[str]) -> 
     """
 
     indexes = []
-    for i, snip in enumerate(transcript):
-        snippet = [word.casefold() for word in snip["matched_tokens"]]
-        if words[0] in snippet:
-            next_snippet = [word.casefold() for word in transcript[i + 1]["matched_tokens"]] if i + 1 < len(transcript) else ""
-            debug(f"Snippet: {snippet}")
-            debug(f"Next Snippet: {next_snippet}")
-            if next_snippet:
-                if all(word in snippet or word in next_snippet for word in words[1:]):
+    for i, tokens in enumerate(transcript):
+        casefolded = [word.casefold() for word in tokens["matched_tokens"]]
+        if words[0] in casefolded:
+            next_casefolded = [word.casefold() for word in transcript[i + 1]["matched_tokens"]] if i + 1 < len(transcript) else ""
+            debug(f"Current Tokens: {casefolded}")
+            debug(f"Next Tokens: {next_casefolded}")
+            if next_casefolded:
+                if all(word in casefolded or word in next_casefolded for word in words[1:]):
                     indexes.append(i)
-            elif all(word in snippet for word in words[1:]):
+            elif all(word in casefolded for word in words[1:]):
                     indexes.append(i)
     return indexes
 
