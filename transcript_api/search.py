@@ -70,18 +70,20 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str|list
         }
 
         query_no_quotes = str(query_params["q"])[1:-1]
+        num_words = len(query_no_quotes.split())
         for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
-            if not (query_no_quotes in document["transcript"][index].casefold()):
+            if num_words != 1 and not (query_no_quotes in document["transcript"][index].casefold()):
                 document["transcript"][index] += f" {document['transcript'][index + 1]}"
 
             marked_snippet = mark_word(
                 document["transcript"][index], query_no_quotes)
             data["matches"].append(
                 {"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
+        
+        if data["matches"]:
+            result.append(data)
 
         debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
-
-        result.append(data)
     return result
 
 def single_word(transcript: list[dict[str, str|list[str]]], query: str) -> list[int]:
@@ -98,7 +100,7 @@ def single_word(transcript: list[dict[str, str|list[str]]], query: str) -> list[
 
     indexes = []
     for i, snippet in enumerate(transcript):
-        casefolded = [word.casefold() for word in snippet["matched_tokens"]] 
+        casefolded = [word.casefold() for word in snippet["matched_tokens"]]
         if query in casefolded:
             debug(f"Snippet: {snippet}")
 
