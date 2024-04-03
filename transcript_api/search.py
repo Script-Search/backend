@@ -111,8 +111,6 @@ def single_word(transcript: list[dict[str, str|list[str]]], query: str) -> list[
     for i, snippet in enumerate(transcript):
         casefolded = [word.casefold() for word in snippet["matched_tokens"]]
         if query in casefolded:
-            debug(f"Snippet: {snippet}")
-
             indexes.append(i)
     return indexes
 
@@ -133,13 +131,11 @@ def multi_word(transcript: list[dict[str, str|list[str]]], words: list[str]) -> 
         casefolded = [word.casefold() for word in tokens["matched_tokens"]]
         if words[0] in casefolded:
             next_casefolded = [word.casefold() for word in transcript[i + 1]["matched_tokens"]] if i + 1 < len(transcript) else ""
-            debug(f"Current Tokens: {casefolded}")
-            debug(f"Next Tokens: {next_casefolded}")
             if next_casefolded:
                 if all(word in casefolded or word in next_casefolded for word in words[1:]):
                     indexes.append(i)
             elif all(word in casefolded for word in words[1:]):
-                    indexes.append(i)
+                indexes.append(i)
     return indexes
 
 def find_indexes(transcript: list[dict[str, str|list[str]]], query: str) -> list[int]:
