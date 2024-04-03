@@ -53,7 +53,7 @@ func initFirestore(ctx context.Context) {
 		sa := option.WithCredentialsFile("credentials_firebase.json")
 		firestoreClient, err = firestore.NewClient(ctx, sa)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("firestore init error: %v\n", err)
 		}
 	})
 }
@@ -64,7 +64,7 @@ func initPubSub(ctx context.Context) {
 		sa := option.WithCredentialsFile("credentials_pub_sub.json")
 		pubsubClient, err = pubsub.NewClient(ctx, projectId, sa)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("pubsub init error: %v", err)
 		}
 		topic = pubsubClient.Topic(topic_name)
 	})
@@ -82,7 +82,7 @@ func mapIdsToDocuments(videoIds []string) []string {
 	return documents
 }
 
-func pubMissingVideoUrl(ctx context.Context, videoIds []string) {
+func pubMissingVideoUrl(ctx context.Context, videoIds []string) error {
 	req := &firestorepb.BatchGetDocumentsRequest{
 		Database:  databaseUrl,
 		Documents: mapIdsToDocuments(videoIds),
@@ -90,10 +90,10 @@ func pubMissingVideoUrl(ctx context.Context, videoIds []string) {
 	}
 	t := time.Now()
 	stream, err := firestoreClient.BatchGetDocuments(ctx, req)
-	log.Printf("batch get took %s", time.Since(t))
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("batch get documents error: %v", err)
 	}
+	log.Printf("batch get took %s", time.Since(t))
 
 	t = time.Now()
 	var results []*pubsub.PublishResult
@@ -103,7 +103,7 @@ func pubMissingVideoUrl(ctx context.Context, videoIds []string) {
 			break
 		}
 		if err != nil {
-			log.Fatalln(err)
+			return fmt.Errorf("stream recv error: %v", err)
 		}
 
 		missingPath := resp.GetMissing()
@@ -111,8 +111,9 @@ func pubMissingVideoUrl(ctx context.Context, videoIds []string) {
 
 		if lastSlashIndex != -1 {
 			videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", missingPath[lastSlashIndex+1:])
+			urls, _ := json.Marshal([1]string{videoUrl})
 			result := topic.Publish(ctx, &pubsub.Message{
-				Data: []byte(videoUrl),
+				Data: []byte(urls),
 			})
 			results = append(results, result)
 		}
@@ -123,9 +124,10 @@ func pubMissingVideoUrl(ctx context.Context, videoIds []string) {
 	for _, r := range results {
 		_, err := r.Get(ctx)
 		if err != nil {
-			log.Fatalln(err)
+			return fmt.Errorf("pubsub processing error: %s", err)
 		}
 	}
+	return nil
 }
 
 func pubMissingIds(ctx context.Context, e event.Event) error {
@@ -141,13 +143,13 @@ func pubMissingIds(ctx context.Context, e event.Event) error {
 	jsonString := string(msg.Message.Data) // Automatically decoded from base64
 	var videoIds []string
 	if err := json.Unmarshal([]byte(jsonString), &videoIds); err != nil {
-		log.Fatalf("JSON Unmarshal Error: %v", err)
+		return fmt.Errorf("json unmarshal error: %v", err)
 	}
 
 	t := time.Now()
-	pubMissingVideoUrl(ctx, videoIds)
+	err := pubMissingVideoUrl(ctx, videoIds)
 	log.Printf("handler took %s", time.Since(t))
-	return nil
+	return err
 }
 
 func init() {
