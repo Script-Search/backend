@@ -76,6 +76,9 @@ def process_url(url: str) -> dict[str, str|None]:
 
     Args:
         url (str): Universsal Reference Link
+
+    Returns:
+        dict[str, str|None]: Dictionary containing video IDs or channel IDs.
     """
     debug(f"Processing URL: {url}")
 
@@ -92,7 +95,7 @@ def process_url(url: str) -> dict[str, str|None]:
         video_id = get_video(url)
         video_ids.append(video_id)
         ss = StringIO()
-        ss.write(f"[{video_id}]")
+        ss.write(f"`{video_id}`")
         data["video_ids"] = ss.getvalue()
     elif url_type == URLType.PLAYLIST:
         video_ids = get_playlist_videos(url)
@@ -171,7 +174,7 @@ def get_playlist_videos(playlist_url: str) -> list[str]:
         playlist_url (str): The playlist URL.
 
     Returns:
-        List[str]: The video URLs.
+        list[str]: The video URLs.
     """
 
     playlist = YDL_CLIENT.extract_info(playlist_url, download=False)

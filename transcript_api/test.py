@@ -90,6 +90,17 @@ class TestProcessUrl(TestCase):
         self.assertTrue("channel_id" in result)
         self.assertEqual(result["channel_id"], "UCYzPXprvl5Y-Sf0g4vX-m6g")
 
+    @patch('scrape.process_url')
+    def test_process_url_video(self, mock_type):
+        video_url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        mock_type.return_value = dict
+
+        self.assertTrue("video_ids" in result)
+        self.assertEqual(result["video_ids"], "jNQXAC9IVRw")
+
+        self.assertTrue("channel_id" in result)
+        self.assertIsNone(result["channel_id"])
+
 if __name__ == '__main__':
     main()
 
