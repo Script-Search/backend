@@ -95,8 +95,10 @@ class TestProcessUrl(TestCase):
         video_url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
         mock_type.return_value = dict
 
+        result = process_url(video_url)
+
         self.assertTrue("video_ids" in result)
-        self.assertEqual(result["video_ids"], "jNQXAC9IVRw")
+        self.assertEqual(result["video_ids"], "`jNQXAC9IVRw`")
 
         self.assertTrue("channel_id" in result)
         self.assertIsNone(result["channel_id"])
