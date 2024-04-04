@@ -60,7 +60,7 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
     """
 
     start = perf_counter()
-    debug("Transcript API called")
+    debug(__name__)
 
     request_json = request.get_json(silent=True) or {"empty": True}
     request_args = request.args or {"empty": True}
