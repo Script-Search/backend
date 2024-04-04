@@ -156,16 +156,11 @@ def get_channel_videos(channel_url: str) -> tuple[str, list[str]]:
     if not channel["entries"]:
         raise ValueError(f"Channel {channel_url} has no videos.")
 
-    # video_urls = []
     video_ids = []
     if "entries" in channel["entries"][0]:
-        for entry in channel["entries"][0]["entries"]:
-            # video_urls.append(entry["url"])
-            video_ids.append(entry["id"])
+        video_ids = [entry["id"] for entry in channel["entries"][0]["entries"]]
     else:
-        for entry in channel["entries"]:
-            # video_urls.append(entry["url"])
-            video_ids.append(entry["id"])
+        video_ids = [entry["id"] for entry in channel["entries"]]
 
     return channel["channel_id"], video_ids
 
@@ -180,13 +175,8 @@ def get_playlist_videos(playlist_url: str) -> list[str]:
     """
 
     playlist = YDL_CLIENT.extract_info(playlist_url, download=False)
-    # video_urls = []
-    video_ids = []
-    for entry in playlist["entries"]:
-        # video_urls.append(entry["url"])
-        video_ids.append(entry["id"])
+    return [entry["id"] for entry in playlist["entries"]]
 
-    return video_ids
 
 def get_video(url: str) -> str:
     """Get the video ID from a URL.

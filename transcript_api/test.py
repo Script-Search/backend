@@ -54,10 +54,13 @@ class TestExtractVideos(TestCase):
 
     @patch('scrape.get_video')
     def test_get_video(self, mock_type):
-        video_url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        video_url = "https://www.youtube.com/watch?v=qaKbCsV53sg"
         mock_type.return_value = str
 
-        self.assertEqual(get_video(video_url), "jNQXAC9IVRw")
+        video_id = get_video(video_url)
+        print(video_id)
+
+        self.assertEqual(video_id, "qaKbCsV53sg")
 
 class TestProcessUrl(TestCase):
     @patch('scrape.process_url')
