@@ -1,0 +1,22 @@
+name: CI and Trigger Cloud Build on Change for consume-batched-urls
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/consume-batched-urls/**'
+
+jobs:
+  prepare-and-trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      # TODO: Unit tests
+      
+      - name: Trigger Cloud Build
+        run: |
+          curl -f POST "${{ secrets.CLOUD_BUILD_CONSUME_BATCHED_URLS_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d '{"branch": "main"}'
