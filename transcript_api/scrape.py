@@ -76,6 +76,9 @@ def process_url(url: str) -> dict[str, str|None]:
 
     Args:
         url (str): Universsal Reference Link
+
+    Returns:
+        dict[str, str|None]: Dictionary containing video IDs or channel IDs.
     """
     debug(f"Processing URL: {url}")
 
@@ -92,7 +95,7 @@ def process_url(url: str) -> dict[str, str|None]:
         video_id = get_video(url)
         video_ids.append(video_id)
         ss = StringIO()
-        ss.write(f"[{video_id}]")
+        ss.write(f"`{video_id}`")
         data["video_ids"] = ss.getvalue()
     elif url_type == URLType.PLAYLIST:
         video_ids = get_playlist_videos(url)
@@ -156,16 +159,11 @@ def get_channel_videos(channel_url: str) -> tuple[str, list[str]]:
     if not channel["entries"]:
         raise ValueError(f"Channel {channel_url} has no videos.")
 
-    # video_urls = []
     video_ids = []
     if "entries" in channel["entries"][0]:
-        for entry in channel["entries"][0]["entries"]:
-            # video_urls.append(entry["url"])
-            video_ids.append(entry["id"])
+        video_ids = [entry["id"] for entry in channel["entries"][0]["entries"]]
     else:
-        for entry in channel["entries"]:
-            # video_urls.append(entry["url"])
-            video_ids.append(entry["id"])
+        video_ids = [entry["id"] for entry in channel["entries"]]
 
     return channel["channel_id"], video_ids
 
@@ -176,17 +174,12 @@ def get_playlist_videos(playlist_url: str) -> list[str]:
         playlist_url (str): The playlist URL.
 
     Returns:
-        List[str]: The video URLs.
+        list[str]: The video URLs.
     """
 
     playlist = YDL_CLIENT.extract_info(playlist_url, download=False)
-    # video_urls = []
-    video_ids = []
-    for entry in playlist["entries"]:
-        # video_urls.append(entry["url"])
-        video_ids.append(entry["id"])
+    return [entry["id"] for entry in playlist["entries"]]
 
-    return video_ids
 
 def get_video(url: str) -> str:
     """Get the video ID from a URL.

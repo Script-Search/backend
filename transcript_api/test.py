@@ -54,10 +54,13 @@ class TestExtractVideos(TestCase):
 
     @patch('scrape.get_video')
     def test_get_video(self, mock_type):
-        video_url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        video_url = "https://www.youtube.com/watch?v=qaKbCsV53sg"
         mock_type.return_value = str
 
-        self.assertEqual(get_video(video_url), "jNQXAC9IVRw")
+        video_id = get_video(video_url)
+        print(video_id)
+
+        self.assertEqual(video_id, "qaKbCsV53sg")
 
 class TestProcessUrl(TestCase):
     @patch('scrape.process_url')
@@ -86,6 +89,19 @@ class TestProcessUrl(TestCase):
 
         self.assertTrue("channel_id" in result)
         self.assertEqual(result["channel_id"], "UCYzPXprvl5Y-Sf0g4vX-m6g")
+
+    @patch('scrape.process_url')
+    def test_process_url_video(self, mock_type):
+        video_url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        mock_type.return_value = dict
+
+        result = process_url(video_url)
+
+        self.assertTrue("video_ids" in result)
+        self.assertEqual(result["video_ids"], "`jNQXAC9IVRw`")
+
+        self.assertTrue("channel_id" in result)
+        self.assertIsNone(result["channel_id"])
 
 if __name__ == '__main__':
     main()

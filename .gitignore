@@ -2,11 +2,12 @@
 *.ttml
 credentials.json
 credentials*.json
-venv
-.venv
-.env
 
 __pycache__/
 node_modules/
 typesense/
 cmd/
+venv/
+.venv/
+.env/
+
