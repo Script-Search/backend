@@ -146,12 +146,13 @@ def transcript_downloader(cloud_event: functions_framework.CloudEvent) -> None:
     """
     try:
         URLs = json.loads(base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8"))
-        URL = URLs[0] # TODO: Add client-side batching to handle parallel URLs in the future
+        # URL = URLs[0] # TODO: Add client-side batching to handle parallel URLs in the future
 
-        if "watch" not in URL:  # TODO: Ensure inputted URL is a singular video
-            print("watch not in URL")
-            return 500
-        info = YDL.extract_info(URL, download=False)
-        insert_transcript(info)
+        # if "watch" not in URL:  # TODO: Ensure inputted URL is a singular video
+        #     print("watch not in URL")
+        #     return 500
+        # info = YDL.extract_info(URL, download=False)
+        # insert_transcript(info)
+        print(URLs)
     except Exception as e:
         return {"error": str(e)}, 500
