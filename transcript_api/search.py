@@ -40,6 +40,29 @@ def init_typesense() -> None:
             "connection_timeout_seconds": 4
         })
 
+def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_params: dict[str, object]) -> list[dict[str, str]]:
+    """
+    Searches for a query in the playlist data.
+
+    Args:
+        query_params (dict[str, str|int|bool]): The query params to use when searching.
+
+    Returns:
+        list[dict[str, str]]: The search results.
+    """
+
+    debug(f"Searching for {search_requests['searches'][0]['q']} in playlists.")
+
+    init_typesense()
+    responses = TYPESENSE_CLIENT.multi_search.perform(search_requests, query_params)
+    
+    for response in responses["results"]:
+        debug(response)
+
+    result = []
+
+    return result
+
 def search_typesense(query_params: dict[str, object]) -> list[dict[str, str|list[dict[str, str|int]]]]:
     """Searches for a query in the transcript data.
 
