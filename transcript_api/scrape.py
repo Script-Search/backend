@@ -94,23 +94,17 @@ def process_url(url: str) -> dict[str, str|None]:
     if url_type == URLType.VIDEO:
         video_id = get_video(url)
         video_ids.append(video_id)
-        ss = StringIO()
-        ss.write(f"`{video_id}`")
-        data["video_ids"] = ss.getvalue()
+        data["video_ids"] = video_ids
+
     elif url_type == URLType.PLAYLIST:
         video_ids = get_playlist_videos(url)
 
         # Prepare video_ids for filtering
-        ss = StringIO()
-        ss.write("[")
-        for video_id in video_ids:
-            ss.write(f'`{video_id}`,')
-        ss.write("]")
-        data["video_ids"] = ss.getvalue()
-        data["video_ids"] = str(data["video_ids"]).replace(",]", "]")
+        data["video_ids"] = video_ids
 
     elif url_type == URLType.CHANNEL:
         data["channel_id"], video_ids = get_channel_videos(url)
+    
     else:
         raise ValueError(f"Invalid URL: {url}")
     

@@ -24,6 +24,29 @@ from settings import DEBUG_FLAG
 
 LOGGER_CONSOLE = None
 
+def distribute(items: list, n: int) -> list[list]:
+    """Distribute items into n groups.
+
+    Args:
+        items (list): The items to distribute.
+        n (int): The number of groups to distribute the items into.
+
+    Returns:
+        list[list]: A list of lists containing the distributed items.
+    """
+    sublist_length = len(items) // n
+    remainder = len(items) % n
+
+    sublists = [[] for _ in range(n)]
+    start = 0
+
+    for i in range(n):
+        sublist_size = (sublist_length + 1) if i < remainder else sublist_length
+        sublists[i] = items[start:start+sublist_size]
+        start += sublist_size
+
+    return sublists
+
 def debug(message: str) -> None:
     """Print a debug message.
 
