@@ -32,7 +32,10 @@ func send(ctx context.Context, yid string, ch chan *PlayerResponse, wg *sync.Wai
 		return
 	}
 
-	// TODO: Add retry (up to 3 perhaps)
+	if tmpPlayerResponse.Microformat.PlayerMicroformatRenderer.UploadDate == "" {
+		fmt.Printf("no upload date found in player response %s\n", yid)
+		return
+	}
 	uploadDate := ParseUploadDate(tmpPlayerResponse.Microformat.PlayerMicroformatRenderer.UploadDate)
 
 	if IsAgeGated(tmpPlayerResponse) {
@@ -45,13 +48,13 @@ func send(ctx context.Context, yid string, ch chan *PlayerResponse, wg *sync.Wai
 
 	// Verify that we're not IP blocked (unlikely)
 	if yid != tmpPlayerResponse.VideoDetails.VideoId {
-		fmt.Println("error in sending request, received response with different videoId")
+		fmt.Printf("error in sending request, received response with different videoId: %s %s\n", yid, tmpPlayerResponse.VideoDetails.VideoId)
 		return
 	}
 
 	subtitles, timestamps, err := SendTimedTextReq(ctx, tmpPlayerResponse, yid)
 	if err != nil {
-		fmt.Printf("error occurred getting timed text ttml for %s\n", yid)
+		fmt.Printf("error occurred getting timed text ttml for %s: %s\n", yid, err)
 		return
 	}
 
@@ -101,8 +104,10 @@ func consumeBatchedUrls(ctx context.Context, e event.Event) error {
 	ch := make(chan *PlayerResponse, len(videoIds))
 
 	for _, videoId := range videoIds {
-		wg.Add(1)
-		go send(ctx, videoId, ch, &wg)
+		if videoId != "" {
+			wg.Add(1)
+			go send(ctx, videoId, ch, &wg)
+		}
 	}
 
 	wg.Wait()

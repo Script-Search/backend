@@ -18,11 +18,11 @@ var (
 func init() {
 	httpClient = http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        200,
-			MaxIdleConnsPerHost: 200,
+			MaxIdleConns:        600,
+			MaxIdleConnsPerHost: 600,
 			IdleConnTimeout:     10 * time.Second,
 		},
-		Timeout: time.Duration(2) * time.Second,
+		Timeout: time.Duration(1) * time.Second,
 	}
 }
 
@@ -95,9 +95,16 @@ func createWebReqData(yid string) (*http.Request, error) {
 		"context": map[string]interface{}{
 			"client": map[string]interface{}{
 				"clientName":    "WEB",
-				"clientVersion": "2.20211221.00.00",
+				"clientVersion": "2.20220801.00.00",
 			},
 		},
+		"playbackContext": map[string]interface{}{
+			"contentPlaybackContext": map[string]interface{}{
+				"html5Preference": "HTML5_PREF_WANTS",
+			},
+		},
+		"contentCheckOk": true,
+    	"racyCheckOk": true,
 	})
 	responseBody := bytes.NewBuffer(postBody)
 	req, err := http.NewRequest("POST", YT_PLAYER_ENDPOINT, responseBody)
@@ -105,7 +112,12 @@ func createWebReqData(yid string) (*http.Request, error) {
 		return nil, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36")
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("X-Youtube-Client-Name", "1")
+	req.Header.Add("X-Youtube-Client-Version", "2.20220801.00.00")
+	req.Header.Add("Origin", "https://www.youtube.com")
+	req.Header.Add("Accept-Encoding", "gzip, deflate")
 	return req, nil
 }
 
@@ -119,6 +131,13 @@ func createEmbeddedReqData(yid string) (*http.Request, error) {
 				"clientVersion": "2.0",
 			},
 		},
+		"playbackContext": map[string]interface{}{
+			"contentPlaybackContext": map[string]interface{}{
+				"html5Preference": "HTML5_PREF_WANTS",
+			},
+		},
+		"contentCheckOk": true,
+    	"racyCheckOk": true,
 	})
 	responseBody := bytes.NewBuffer(postBody)
 	req, err := http.NewRequest("POST", YT_PLAYER_ENDPOINT, responseBody)
@@ -126,7 +145,12 @@ func createEmbeddedReqData(yid string) (*http.Request, error) {
 		return nil, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (PlayStation 4 5.55) AppleWebKit/601.2 (KHTML, like Gecko)")
-	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("X-Youtube-Client-Name", "85")
+	req.Header.Add("X-Youtube-Client-Version", "2.0")
+	req.Header.Add("Origin", "https://www.youtube.com")
+	req.Header.Add("Accept-Encoding", "gzip, deflate")
 	return req, nil
 }
 
