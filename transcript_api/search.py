@@ -71,7 +71,7 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
                 "matches": []
             }
 
-            query_no_quotes = str(query_params["q"])[1:-1]
+            query_no_quotes = search_requests['searches'][0]['q']
             words = query_no_quotes.split()
             num_words = len(words)
             for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
