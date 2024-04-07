@@ -41,7 +41,7 @@ YDL_OPS: dict[str, bool|str|dict[str, dict[str, list[str]]]] = {
     "extractor_args": {
         "youtube": {
             "player_skip": ["webpage"],
-            "player_client": ["web", "android"]
+            "player_client": ["web"]
         }
     },
     "source_address": "0.0.0.0", # we're getting ip blocked
