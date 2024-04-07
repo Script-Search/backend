@@ -61,7 +61,7 @@ func pubMissingVideoUrl(ctx context.Context, videoIds []string) error {
 
 	t = time.Now()
 	var results []*pubsub.PublishResult
-	batchVideoIds := make([]string, 25)
+	batchVideoIds := make([]string, 0, ID_BATCH_SIZE) // size 0, capacity batch_size
 	for {
 		resp, err := stream.Recv()
 		if err == io.EOF {
