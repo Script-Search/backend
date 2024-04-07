@@ -110,6 +110,11 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
 
                 data["hits"] = search_playlist(copy_search_requests, copy_search_param)
 
+            else:
+                try:
+                    data["hits"] = search_typesense(copy_search_param)
+                except ValueError as e:
+                    return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
         else: # Case when we only scraping is happening
             url = ""
             if request_args and "url" in request_args:
