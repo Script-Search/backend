@@ -78,8 +78,7 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
                 transcript_casefoled = document["transcript"][index].casefold()
 
                 if num_words != 1 and index + 1 < len(document["transcript"]) and not (query_no_quotes in transcript_casefoled):
-                    document["transcript"][index] += f" {
-                        document['transcript'][index + 1]}"
+                    document["transcript"][index] += f" {document['transcript'][index + 1]}"
 
                 marked_snippet = document["transcript"][index]
                 for word in words:
