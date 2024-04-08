@@ -2,8 +2,8 @@ package function
 
 import (
 	"bytes"
-	"context"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -20,8 +20,8 @@ var (
 func init() {
 	httpClient = http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        600,
-			MaxIdleConnsPerHost: 600,
+			MaxIdleConns:        200,
+			MaxIdleConnsPerHost: 200,
 			IdleConnTimeout:     10 * time.Second,
 		},
 		Timeout: time.Duration(1) * time.Second,
@@ -38,14 +38,14 @@ func SendPlayerReq(ctx context.Context, yid string, client string) (*TmpPlayerRe
 	} else if client == "embedded" {
 		req, err = createEmbeddedReqData(yid)
 	} else {
-		return nil, fmt.Errorf("error unexpected client: %s", client)
+		return nil, fmt.Errorf("err unexpected client: %s", client)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error occured creating new request:\n%s", err)
+		return nil, fmt.Errorf("err creating new req: %s", err)
 	}
 	webPlayerResp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error occurred sending player request:\n%s", err)
+		return nil, fmt.Errorf("err sending player req: %s", err)
 	}
 	defer webPlayerResp.Body.Close()
 
@@ -54,7 +54,7 @@ func SendPlayerReq(ctx context.Context, yid string, client string) (*TmpPlayerRe
 	if webPlayerResp.Header.Get("Content-Encoding") == "gzip" {
 		gzipReader, err := gzip.NewReader(webPlayerResp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("error creating gzip reader: %s", err)
+			return nil, fmt.Errorf("err creating gzip reader: %s", err)
 		}
 		defer gzipReader.Close()
 		reader = gzipReader
@@ -64,7 +64,7 @@ func SendPlayerReq(ctx context.Context, yid string, client string) (*TmpPlayerRe
 	tmpPlayerResponse := &TmpPlayerResponse{}
 	err = json.NewDecoder(reader).Decode(tmpPlayerResponse)
 	if err != nil {
-		return nil, fmt.Errorf("error occurred reading body:\n%s", err)
+		return nil, fmt.Errorf("err reading pr body: %s", err)
 	}
 	return tmpPlayerResponse, nil
 }
@@ -72,7 +72,7 @@ func SendPlayerReq(ctx context.Context, yid string, client string) (*TmpPlayerRe
 func SendTimedTextReq(ctx context.Context, tPR *TmpPlayerResponse, yid string) ([]string, []int, error) {
 	timedTextUrl := GetTimedTextUrl(tPR)
 	if timedTextUrl == "" {
-		return nil, nil, fmt.Errorf("no valid english subtitles for videoId %s", yid)
+		return nil, nil, fmt.Errorf("err no en subtitles for %s", yid)
 	}
 	req, err := createTTMLReqData(timedTextUrl + "&fmt=ttml")
 	if err != nil {
@@ -117,7 +117,7 @@ func createWebReqData(yid string) (*http.Request, error) {
 			},
 		},
 		"contentCheckOk": true,
-    	"racyCheckOk": true,
+		"racyCheckOk":    true,
 	})
 	responseBody := bytes.NewBuffer(postBody)
 	req, err := http.NewRequest("POST", YT_PLAYER_ENDPOINT, responseBody)
@@ -150,7 +150,7 @@ func createEmbeddedReqData(yid string) (*http.Request, error) {
 			},
 		},
 		"contentCheckOk": true,
-    	"racyCheckOk": true,
+		"racyCheckOk":    true,
 	})
 	responseBody := bytes.NewBuffer(postBody)
 	req, err := http.NewRequest("POST", YT_PLAYER_ENDPOINT, responseBody)

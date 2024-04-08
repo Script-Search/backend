@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"net"
 
 	"cloud.google.com/go/pubsub"
 	"google.golang.org/api/option"
@@ -19,6 +20,8 @@ var (
 	pubsubClientLazyLoaded sync.Once
 	topic                  *pubsub.Topic
 	topic_name             = "SyncVideoBatch"
+
+	localAddr *net.UDPAddr
 )
 
 func FixDir() {
@@ -41,4 +44,14 @@ func InitPubSub(ctx context.Context) {
 		topic.PublishSettings.CountThreshold = 1
 		topic.PublishSettings.DelayThreshold = 0
 	})
+}
+
+func DebugAddr() {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatalf("debugaddr init error: %v", err)
+	}
+
+     defer conn.Close()
+     localAddr = conn.LocalAddr().(*net.UDPAddr)
 }
