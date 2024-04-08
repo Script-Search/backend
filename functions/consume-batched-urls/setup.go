@@ -38,5 +38,7 @@ func InitPubSub(ctx context.Context) {
 			log.Fatalf("pubsub init error: %v", err)
 		}
 		topic = pubsubClient.Topic(topic_name)
+		topic.PublishSettings.CountThreshold = 1
+		topic.PublishSettings.DelayThreshold = 0
 	})
 }
