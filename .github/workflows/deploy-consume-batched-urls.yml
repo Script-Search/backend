@@ -1,11 +1,11 @@
-name: CI and Trigger Cloud Build on Change for go-upsert-typesense
+name: CI and Trigger Cloud Build on Change for consume-batched-urls
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'functions/go-upsert-typesense/**'
+      - 'functions/consume-batched-urls/**'
 
 jobs:
   prepare-and-trigger:
@@ -17,6 +17,6 @@ jobs:
       
       - name: Trigger Cloud Build
         run: |
-          curl -f POST "${{ secrets.CLOUD_BUILD_GO_UPSERT_TYPESENSE_WEBHOOK_URL }}" \
+          curl -f POST "${{ secrets.CLOUD_BUILD_CONSUME_BATCHED_URLS_WEBHOOK_URL }}" \
           -H "Content-Type: application/json" \
           -d '{"branch": "main"}'

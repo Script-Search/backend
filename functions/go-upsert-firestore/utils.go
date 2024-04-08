@@ -37,32 +37,15 @@ func mapDocumentsToWrites(videoDocs []TranscriptDoc) []*firestorepb.Write {
 }
 
 func docToFirestore(doc TranscriptDoc) *firestorepb.Document {
-	transcriptValues := []*firestorepb.Value{}
-	for _, transcript := range doc.Transcript {
-		transcriptValues = append(transcriptValues, &firestorepb.Value{
-			ValueType: &firestorepb.Value_StringValue{StringValue: transcript},
-		})
-	}
-
-	timestampValues := []*firestorepb.Value{}
-	for _, timestamp := range doc.Timestamps {
-		timestampValues = append(timestampValues, &firestorepb.Value{
-			ValueType: &firestorepb.Value_IntegerValue{IntegerValue: int64(timestamp)},
-		})
-	}
-
 	return &firestorepb.Document{
-		Name: fmt.Sprintf("%s/documents/%s/%s", DatabaseUrl, documentPath, doc.Id),
+		Name: fmt.Sprintf("%s/documents/%s/%s", DatabaseUrl, documentPath, doc.VideoId),
 		Fields: map[string]*firestorepb.Value{
-			"id":           {ValueType: &firestorepb.Value_StringValue{StringValue: doc.Id}},
 			"channel_id":   {ValueType: &firestorepb.Value_StringValue{StringValue: doc.ChannelId}},
 			"channel_name": {ValueType: &firestorepb.Value_StringValue{StringValue: doc.ChannelName}},
 			"video_id":     {ValueType: &firestorepb.Value_StringValue{StringValue: doc.VideoId}},
 			"duration":     {ValueType: &firestorepb.Value_IntegerValue{IntegerValue: int64(doc.Duration)}},
 			"title":        {ValueType: &firestorepb.Value_StringValue{StringValue: doc.Title}},
 			"upload_date":  {ValueType: &firestorepb.Value_IntegerValue{IntegerValue: int64(doc.UploadDate)}},
-			"transcript":   {ValueType: &firestorepb.Value_ArrayValue{ArrayValue: &firestorepb.ArrayValue{Values: transcriptValues}}},
-			"timestamps":   {ValueType: &firestorepb.Value_ArrayValue{ArrayValue: &firestorepb.ArrayValue{Values: timestampValues}}},
 		},
 	}
 }

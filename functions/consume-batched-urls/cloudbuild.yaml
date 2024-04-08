@@ -5,15 +5,14 @@ steps:
   - '-c'
   - |
     echo "$$CREDENTIALS_PUBSUB_JSON" > credentials_pub_sub.json &&
-    gcloud functions deploy yt-url-consumer \
-      --trigger-topic=YoutubeURLs \
-      --entry-point=transcript_downloader \
-      --runtime=python39 \
+    gcloud functions deploy consume-batched-urls \
+      --entry-point=ConsumeBatchedUrls \
+      --runtime=go122 \
       --region=us-central1 \
       --gen2
   secretEnv: ['CREDENTIALS_PUBSUB_JSON']
-  id: "deploy-cloudfunc-yt-url-consumer"
-  dir: functions/yt-url-consumer
+  id: "deploy-cloudfunc-consume-batched-urls"
+  dir: functions/consume-batched-urls
 options:
   logging: CLOUD_LOGGING_ONLY
 availableSecrets:

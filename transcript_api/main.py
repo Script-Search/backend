@@ -59,74 +59,83 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
         - API_RESPONSE_HEADERS for the response.
     """
 
-    start = perf_counter()
-    debug("======================== TRANSCRIPT API ========================")
+    try:
+        start = perf_counter()
+        debug("======================== TRANSCRIPT API ========================")
 
-    request_json = request.get_json(silent=True) or {"empty": True}
-    request_args = request.args or {"empty": True}
+        request_json = request.get_json(silent=True) or {"empty": True}
+        request_args = request.args or {"empty": True}
 
-    data = {
-        "status": "success",
-        "MAX_QUERY_WORD_LIMIT": MAX_QUERY_WORD_LIMIT,
-        "time": 0,
-        "channel_id": None,
-        "video_ids": None,
-        "hits": None,
-    }
+        data = {
+            "status": "success",
+            "MAX_QUERY_WORD_LIMIT": MAX_QUERY_WORD_LIMIT,
+            "time": 0,
+            "channel_id": None,
+            "video_ids": None,
+            "hits": None,
+        }
 
-    channel_id = request_json.get("channel_id")
-    video_ids = request_json.get("video_ids")
-    query = request_json.get("query")
+        channel_id = request_json.get("channel_id")
+        video_ids = request_json.get("video_ids")
+        query = request_json.get("query")
 
-    if query: # Case when only searching is happening
-        copy_search_param = TYPESENSE_SEARCH_PARAMS.copy() # Normally copy is bad, but this should be fast
-        copy_search_param["q"] = f"\"{query}\""
-        if channel_id:
-            copy_search_param["filter_by"] = f"channel_id:{channel_id}"
+        if query: # Case when only searching is happening
+            copy_search_param = TYPESENSE_SEARCH_PARAMS.copy() # Normally copy is bad, but this should be fast
+            copy_search_param["q"] = f"\"{query}\""
+            if channel_id:
+                copy_search_param["filter_by"] = f"channel_id:{channel_id}"
 
-            try:
-                data["hits"] = search_typesense(copy_search_param)
-            except ValueError as e:
-                return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
+                try:
+                    data["hits"] = search_typesense(copy_search_param)
+                except ValueError as e:
+                    return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
 
-        elif video_ids:
-            copy_search_param = TYPESENSE_SEARCH_PARAMS.copy()
+            elif video_ids:
+                copy_search_param = TYPESENSE_SEARCH_PARAMS.copy()
 
-            del copy_search_param["drop_tokens_threshold"]
-            del copy_search_param["typo_tokens_threshold"]
-            del copy_search_param["page"]
-            del copy_search_param["filter_by"]
-            del copy_search_param["q"]
+                del copy_search_param["drop_tokens_threshold"]
+                del copy_search_param["typo_tokens_threshold"]
+                del copy_search_param["page"]
+                del copy_search_param["filter_by"]
+                del copy_search_param["q"]
 
-            copy_search_requests = TYPESENSE_SEARCH_REQUESTS.copy() 
-            split_video_ids = distribute(video_ids, 5)
+                copy_search_requests = TYPESENSE_SEARCH_REQUESTS.copy() 
+                split_video_ids = distribute(video_ids, 5)
 
-            string_ids = [",".join(ids) for ids in split_video_ids]
+                string_ids = [",".join(ids) for ids in split_video_ids]
 
-            for i, sub_search in enumerate(copy_search_requests["searches"]):
-                sub_search["q"] = f"{query}"
-                sub_search["filter_by"] = f"video_id:[{string_ids[i]}]"
+                for i, sub_search in enumerate(copy_search_requests["searches"]):
+                    sub_search["q"] = f"{query}"
+                    sub_search["filter_by"] = f"video_id:[{string_ids[i]}]"
 
-            data["hits"] = search_playlist(copy_search_requests, copy_search_param)
+                data["hits"] = search_playlist(copy_search_requests, copy_search_param)
 
-    else: # Case when we only scraping is happening
-        url = ""
-        if request_args and "url" in request_args:
-            url = str(request_args["url"])
-        if request_json and "url" in request_json:
-            url = request_json.get("url", "")
+            else:
+                try:
+                    data["hits"] = search_typesense(copy_search_param)
+                except ValueError as e:
+                    return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
+        else: # Case when we only scraping is happening
+            url = ""
+            if request_args and "url" in request_args:
+                url = str(request_args["url"])
+            if request_json and "url" in request_json:
+                url = request_json.get("url", "")
 
-        if url:
-            data_temp = {}
-            try:
-                data_temp = process_url(url)
-            except ValueError as e:
-                return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
-            data["video_ids"] = data_temp["video_ids"]
-            data["channel_id"] = data_temp["channel_id"]
+            if url:
+                data_temp = {}
+                try:
+                    data_temp = process_url(url)
+                except ValueError as e:
+                    return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
+                data["video_ids"] = data_temp["video_ids"]
+                data["channel_id"] = data_temp["channel_id"]
 
-    end = perf_counter()
-    data["time"] = end - start
-    debug(f"Transcript API finished in {data['time']} seconds")
+        end = perf_counter()
+        data["time"] = end - start
+        debug(f"Transcript API finished in {data['time']} seconds")
 
-    return (jsonify(data), 200, API_RESPONSE_HEADERS)
+        return (jsonify(data), 200, API_RESPONSE_HEADERS)
+
+    except Exception as e:      # catch all other exceptions
+        return (jsonify({"error": str(e)}), 500, API_RESPONSE_HEADERS)
