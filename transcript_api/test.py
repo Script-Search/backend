@@ -2,9 +2,20 @@ from unittest import TestCase, main
 from unittest.mock import patch
 
 from helpers import distribute
-from scrape import URLType, init_ydl_client, get_url_type, get_channel_videos, get_playlist_videos, get_video, process_url
-from search import search_typesense, search_playlist, mark_word
+from scrape import URLType, YDL_CLIENT, init_ydl_client, get_url_type, get_channel_videos, get_playlist_videos, get_video, process_url
+from search import TYPESENSE_CLIENT, init_typesense, search_typesense, search_playlist, mark_word
 from settings import MAX_VIDEO_LIMIT, TYPESENSE_SEARCH_PARAMS, TYPESENSE_SEARCH_REQUESTS
+
+class TestInitialize(TestCase):
+    @patch('scrape.init_ydl_client')
+    def test_init_ydl_client(self, mock_type):
+        init_ydl_client()
+        self.assertIsNotNone(YDL_CLIENT)
+
+    @patch('search.init_typesense')
+    def test_init_typesense(self, mock_type):
+        init_typesense()
+        self.assertIsNotNone(TYPESENSE_CLIENT)
 
 class TestGetURLType(TestCase):
     @patch('scrape.get_url_type')
@@ -25,7 +36,34 @@ class TestGetURLType(TestCase):
         mock_type.return_value = URLType.CHANNEL
         self.assertEqual(get_url_type(channel_url), URLType.CHANNEL)
 
+    @patch('scrape.get_url_type')
+    def test_get_url_type_invalid(self, mock_type):
+        invalid_url = r"https://www.google.com"
+        self.assertRaises(ValueError, get_url_type, invalid_url)
+
 class TestExtractVideos(TestCase):
+    @patch('scrape.get_video')
+    def test_get_video(self, mock_type):
+        video_url = r"https://www.youtube.com/watch?v=qaKbCsV53sg"
+        mock_type.return_value = str
+
+        video_id = get_video(video_url)
+        print(video_id)
+
+        self.assertEqual(video_id, "qaKbCsV53sg")
+
+    @patch('scrape.get_playlist_videos')
+    def test_get_playlist_videos(self, mock_type):
+        playlist_url = r"https://www.youtube.com/playlist?list=PLBRObSmbZluRiGDWMKtOTJiLy3q0zIfd7"
+        mock_type.return_value = tuple
+
+        init_ydl_client()
+        video_ids = get_playlist_videos(playlist_url)
+
+        self.assertIsInstance(video_ids, list)
+        self.assertIsInstance(video_ids[0], str)
+        self.assertEqual(len(video_ids), 72)
+
     @patch('scrape.get_channel_videos')
     def test_get_channel_videos(self, mock_type):
         channel_url = r"https://www.youtube.com/@jacksepticeye"
@@ -41,28 +79,6 @@ class TestExtractVideos(TestCase):
         self.assertIsInstance(video_ids, list)
         self.assertIsInstance(video_ids[0], str)
         self.assertEqual(len(video_ids), MAX_VIDEO_LIMIT)
-
-    @patch('scrape.get_playlist_videos')
-    def test_get_playlist_videos(self, mock_type):
-        playlist_url = r"https://www.youtube.com/playlist?list=PLBRObSmbZluRiGDWMKtOTJiLy3q0zIfd7"
-        mock_type.return_value = tuple
-
-        init_ydl_client()
-        video_ids = get_playlist_videos(playlist_url)
-
-        self.assertIsInstance(video_ids, list)
-        self.assertIsInstance(video_ids[0], str)
-        self.assertEqual(len(video_ids), 72)
-
-    @patch('scrape.get_video')
-    def test_get_video(self, mock_type):
-        video_url = r"https://www.youtube.com/watch?v=qaKbCsV53sg"
-        mock_type.return_value = str
-
-        video_id = get_video(video_url)
-        print(video_id)
-
-        self.assertEqual(video_id, "qaKbCsV53sg")
 
 class TestProcessUrl(TestCase):
     @patch('scrape.process_url')
@@ -124,7 +140,7 @@ class TestHelpers(TestCase):
 
 class TestSearch(TestCase):
     @patch('search.search_typesense')
-    def test_search_typesense(self, mocktype):
+    def test_search_no_filter(self, mocktype):
         mocktype.return_value = dict
         copy_search_params = TYPESENSE_SEARCH_PARAMS.copy()
         copy_search_params["q"] = "\"game\""
@@ -138,6 +154,21 @@ class TestSearch(TestCase):
         self.assertTrue("matches" in result[0])
 
         self.assertIsNotNone(result[0]["matches"])
+
+    @patch('search.search_typesense')
+    def test_search_filter_channel(self, mocktype):
+        mocktype.return_value = dict
+        copy_search_params = TYPESENSE_SEARCH_PARAMS.copy()
+        copy_search_params["q"] = "\"game\""
+        copy_search_params["filter_by"] = "channel_id:UCYzPXprvl5Y-Sf0g4vX-m6g"
+
+        result = search_typesense(copy_search_params)
+        self.assertIsNotNone(result)
+        self.assertTrue("video_id" in result[0])
+        self.assertTrue("channel_id" in result[0])
+        self.assertTrue("title" in result[0])
+        self.assertTrue("channel_name" in result[0])
+        self.assertTrue("matches" in result[0])
     
     @patch('search.search_playlist')
     def test_search_playlist(self, mocktype):
@@ -166,7 +197,6 @@ class TestSearch(TestCase):
 
         print(copy_search_requests)
         result = search_playlist(copy_search_requests, copy_search_param)
-
 
 if __name__ == '__main__':
     main()
