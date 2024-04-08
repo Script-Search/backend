@@ -17,6 +17,6 @@ jobs:
       
       - name: Trigger Cloud Build
         run: |
-          curl -f POST "${{ secrets.CLOUD_BULD_GO_UPSERT_TYPESENSE_WEBHOOK_URL }}" \
+          curl -f POST "${{ secrets.CLOUD_BUILD_GO_UPSERT_TYPESENSE_WEBHOOK_URL }}" \
           -H "Content-Type: application/json" \
           -d '{"branch": "main"}'
