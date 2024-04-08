@@ -3,9 +3,11 @@ package function
 import (
 	"bytes"
 	"context"
+	"compress/gzip"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
@@ -18,8 +20,8 @@ var (
 func init() {
 	httpClient = http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        600,
-			MaxIdleConnsPerHost: 600,
+			MaxIdleConns:        200,
+			MaxIdleConnsPerHost: 200,
 			IdleConnTimeout:     10 * time.Second,
 		},
 		Timeout: time.Duration(1) * time.Second,
@@ -47,9 +49,20 @@ func SendPlayerReq(ctx context.Context, yid string, client string) (*TmpPlayerRe
 	}
 	defer webPlayerResp.Body.Close()
 
+	var reader io.Reader = webPlayerResp.Body
+	// Check if the content is gzip-encoded
+	if webPlayerResp.Header.Get("Content-Encoding") == "gzip" {
+		gzipReader, err := gzip.NewReader(webPlayerResp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error creating gzip reader: %s", err)
+		}
+		defer gzipReader.Close()
+		reader = gzipReader
+	}
+
 	// Read the response
 	tmpPlayerResponse := &TmpPlayerResponse{}
-	err = json.NewDecoder(webPlayerResp.Body).Decode(tmpPlayerResponse)
+	err = json.NewDecoder(reader).Decode(tmpPlayerResponse)
 	if err != nil {
 		return nil, fmt.Errorf("error occurred reading body:\n%s", err)
 	}

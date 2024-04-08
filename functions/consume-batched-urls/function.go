@@ -24,7 +24,6 @@ func init() {
 // Should take a url, Client (clientname, version, headers)
 func send(ctx context.Context, yid string, ch chan *PlayerResponse, wg *sync.WaitGroup) {
 	defer wg.Done()
-	startTime := time.Now()
 
 	tmpPlayerResponse, err := SendPlayerReq(ctx, yid, "web")
 	if err != nil {
@@ -79,7 +78,6 @@ func send(ctx context.Context, yid string, ch chan *PlayerResponse, wg *sync.Wai
 		return
 	}
 
-	fmt.Printf("sending %s took %s\n", yid, time.Since(startTime))
 	ch <- playerResponse
 }
 

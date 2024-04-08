@@ -8,6 +8,6 @@ node_modules/
 typesense/
 cmd/
 venv/
-.venv/
-.env/
+.venv
+.env
 

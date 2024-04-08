@@ -58,6 +58,7 @@ func pubMissingVideoUrl(ctx context.Context, videoIds []string) error {
 		return fmt.Errorf("batch get documents error: %v", err)
 	}
 	log.Printf("batch get took %s", time.Since(t))
+	defer stream.CloseSend()
 
 	t = time.Now()
 	var results []*pubsub.PublishResult
