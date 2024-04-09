@@ -41,7 +41,7 @@ def init_typesense() -> None:
         })
 
 
-def process_hit(hit: dict, query_no_quotes: str) -> list[dict[str, str|int]]:
+def process_hit(hit: dict[str, int|list[dict[str, str|list]]|dict[str, list]], query_no_quotes: str) -> list[dict[str, str|int]]:
     """
     Processes the hit data.
 
@@ -52,6 +52,7 @@ def process_hit(hit: dict, query_no_quotes: str) -> list[dict[str, str|int]]:
     Returns:
         list[dict[str, str|int]]: The processed hit data
     """
+
     document = hit["document"]
     marked_snippets = []
     words = query_no_quotes.split()

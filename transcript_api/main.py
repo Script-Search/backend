@@ -27,7 +27,6 @@ It accepts JSON payloads with optional parameters such as
 from __future__ import annotations
 
 # Standard Library Imports
-import io
 from time import perf_counter
 
 # Third-Party Imports
@@ -92,7 +91,6 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
 
             elif video_ids:
                 copy_search_param = TYPESENSE_SEARCH_PARAMS.copy()
-                debug(len(video_ids))
                 if len(video_ids) < len(TYPESENSE_SEARCH_REQUESTS["searches"]):
                     copy_search_param["filter_by"] = f"video_id:{video_ids}"
                     copy_search_param["q"] = f"\"{query}\""
