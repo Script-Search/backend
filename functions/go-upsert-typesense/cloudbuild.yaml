@@ -1,6 +1,8 @@
 steps:
-- name: 'gcr.io/cloud-builders/go'
-  args: ['mod', 'vendor']
+- name: 'gcr.io/cloud-builders/go:debian-1.21'
++ name: 'golang'
++ entrypoint: 'go'
+  args: ['version']
   dir: 'functions/go-upsert-typesense'
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
