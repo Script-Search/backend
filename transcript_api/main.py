@@ -35,7 +35,7 @@ import functions_framework
 from flask import jsonify, Request, Response
 
 # File-System Imports
-from settings import API_RESPONSE_HEADERS, TYPESENSE_SEARCH_PARAMS, TYPESENSE_SEARCH_REQUESTS, MAX_QUERY_WORD_LIMIT
+from settings import API_RESPONSE_HEADERS, TYPESENSE_SEARCH_PARAMS, TYPESENSE_SEARCH_REQUESTS, MAX_QUERY_WORD_LIMIT 
 from helpers import debug, distribute
 from scrape import process_url
 from search import search_typesense, search_playlist
@@ -92,24 +92,32 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
 
             elif video_ids:
                 copy_search_param = TYPESENSE_SEARCH_PARAMS.copy()
+                debug(len(video_ids))
+                if len(video_ids) < len(TYPESENSE_SEARCH_REQUESTS["searches"]):
+                    copy_search_param["filter_by"] = f"video_id:{video_ids}"
+                    copy_search_param["q"] = f"\"{query}\""
+                    
+                    try:
+                        data["hits"] = search_typesense(copy_search_param)
+                    except ValueError as e:
+                        return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
+                else:
+                    del copy_search_param["drop_tokens_threshold"]
+                    del copy_search_param["typo_tokens_threshold"]
+                    del copy_search_param["page"]
+                    del copy_search_param["filter_by"]
+                    del copy_search_param["q"]
 
-                del copy_search_param["drop_tokens_threshold"]
-                del copy_search_param["typo_tokens_threshold"]
-                del copy_search_param["page"]
-                del copy_search_param["filter_by"]
-                del copy_search_param["q"]
+                    copy_search_requests = TYPESENSE_SEARCH_REQUESTS.copy() 
+                    split_video_ids = distribute(video_ids, len(TYPESENSE_SEARCH_REQUESTS["searches"]))
 
-                copy_search_requests = TYPESENSE_SEARCH_REQUESTS.copy() 
-                split_video_ids = distribute(video_ids, 5)
+                    string_ids = [",".join(ids) for ids in split_video_ids]
 
-                string_ids = [",".join(ids) for ids in split_video_ids]
+                    for i, sub_search in enumerate(copy_search_requests["searches"]):
+                        sub_search["q"] = f"{query}"
+                        sub_search["filter_by"] = f"video_id:[{string_ids[i]}]"
 
-                for i, sub_search in enumerate(copy_search_requests["searches"]):
-                    sub_search["q"] = f"{query}"
-                    sub_search["filter_by"] = f"video_id:[{string_ids[i]}]"
-
-                data["hits"] = search_playlist(copy_search_requests, copy_search_param)
-
+                    data["hits"] = search_playlist(copy_search_requests, copy_search_param)
             else:
                 try:
                     data["hits"] = search_typesense(copy_search_param)
