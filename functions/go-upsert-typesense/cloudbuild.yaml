@@ -1,4 +1,7 @@
 steps:
+- name: 'gcr.io/cloud-builders/go'
+  args: ['mod', 'vendor']
+  dir: 'functions/go-upsert-typesense'
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
