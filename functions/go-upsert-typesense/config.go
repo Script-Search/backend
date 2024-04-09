@@ -52,11 +52,3 @@ func filterAndTrim(arr []string) []string {
 	}
 	return result
 }
-
-func FixDir() {
-	gcloudFuncSourceDir := "serverless_function_source_code"
-	fileInfo, err := os.Stat(gcloudFuncSourceDir)
-	if err == nil && fileInfo.IsDir() {
-		_ = os.Chdir(gcloudFuncSourceDir)
-	}
-}

@@ -1,2 +1,4 @@
 cloudbuild.yaml
 cmd
+go.mod
+go.sum

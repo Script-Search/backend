@@ -10,30 +10,19 @@ import (
 	"github.com/cloudevents/sdk-go/v2/event"
 	"github.com/typesense/typesense-go/typesense/api"
 	"github.com/typesense/typesense-go/typesense/api/pointer"
+
+	setup "github.com/Script-Search/backend/shared/setup"
+	types "github.com/Script-Search/backend/shared/types"
 )
 
+// Using Composition
 type TranscriptDoc struct {
-	Id          string   `json:"id"`
-	ChannelId   string   `json:"channel_id"`
-	ChannelName string   `json:"channel_name"`
-	VideoId     string   `json:"video_id"`
-	Duration    int      `json:"duration"`
-	Title       string   `json:"title"`
-	UploadDate  int      `json:"upload_date"`
-	Transcript  []string `json:"transcript"`
-	Timestamps  []int    `json:"timestamps"`
-}
-
-type MessagePublishedData struct {
-	Message PubSubMessage
-}
-
-type PubSubMessage struct {
-	Data []byte `json:"data"`
+	Id string `json:"id"`
+	types.PlayerResponse
 }
 
 func init() {
-	FixDir()
+	setup.FixDir()
 	InitConfig()
 	InitTypesense()
 	functions.CloudEvent("UpsertToTypesense", upsertToTypesense)
@@ -41,7 +30,7 @@ func init() {
 
 func upsertToTypesense(ctx context.Context, e event.Event) error {
 	// Process the msg and convert to golang slice of strings
-	var msg MessagePublishedData
+	var msg types.MessagePublishedData
 	if err := e.DataAs(&msg); err != nil {
 		return fmt.Errorf("event.DataAs: %v", err)
 	}
@@ -62,7 +51,7 @@ func upsertToTypesense(ctx context.Context, e event.Event) error {
 
 	t := time.Now()
 	params := &api.ImportDocumentsParams{
-		Action: pointer.String("upsert"),
+		Action:    pointer.String("upsert"),
 		BatchSize: pointer.Int(len(documents)),
 	}
 	_, err := TypesenseClient.Collection(TypesenseCollectionName).Documents().Import(ctx, documents, params)

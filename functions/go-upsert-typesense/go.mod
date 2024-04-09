@@ -2,8 +2,11 @@ module functions.com/go-upsert-typesense
 
 go 1.22.0
 
+replace github.com/Script-Search/backend/shared => ../../shared
+
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.1
+	github.com/Script-Search/backend/shared v0.0.0-00010101000000-000000000000
 	github.com/cloudevents/sdk-go/v2 v2.15.2
 	github.com/joho/godotenv v1.5.1
 	github.com/typesense/typesense-go v1.0.0
