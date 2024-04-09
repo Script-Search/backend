@@ -20,8 +20,9 @@ var (
 func init() {
 	httpClient = http.Client{
 		Transport: &http.Transport{
-			MaxIdleConns:        200,
-			MaxIdleConnsPerHost: 200,
+			MaxIdleConns:        150,
+			MaxConnsPerHost:     150,
+			MaxIdleConnsPerHost: 150,
 			IdleConnTimeout:     10 * time.Second,
 		},
 		Timeout: time.Duration(1) * time.Second,
