@@ -41,6 +41,40 @@ def init_typesense() -> None:
         })
 
 
+def process_hit(hit: dict, query_no_quotes: str) -> list[dict[str, str|int]]:
+    """
+    Processes the hit data.
+
+    Args:
+        hit (dict[str, str|list[str]]): The hit data
+        query_no_quotes (str): The query without quotes
+
+    Returns:
+        list[dict[str, str|int]]: The processed hit data
+    """
+    document = hit["document"]
+    marked_snippets = []
+    words = query_no_quotes.split()
+    num_words = len(words)
+    
+    for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
+        transcript_casefoled = document["transcript"][index].casefold()
+
+        if num_words != 1 and index + 1 < len(document["transcript"]) and not (query_no_quotes in transcript_casefoled):
+            document["transcript"][index] += f" {document['transcript'][index + 1]}"
+
+        marked_snippet = document["transcript"][index]
+        for word in words:
+            marked_snippet = mark_word(marked_snippet, word)
+
+        for i in range(MAX_QUERY_WORD_LIMIT, 1, -1):
+            marked_snippet = marked_snippet.replace(r"<mark>" * i, "<mark>")
+            marked_snippet = marked_snippet.replace(r"</mark>" * i, "</mark>")
+
+        marked_snippets.append({"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
+
+    return marked_snippets
+
 def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_params: dict[str, object]) -> list[dict[str, str]]:
     """
     Searches for a query in the playlist data.
@@ -55,46 +89,22 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
     debug(f"Searching for {search_requests['searches'][0]['q']} in playlists.")
 
     init_typesense()
-    responses = TYPESENSE_CLIENT.multi_search.perform(
-        search_requests, query_params)
+    responses = TYPESENSE_CLIENT.multi_search.perform(search_requests, query_params)
     result = []
 
     for response in responses["results"]:
         for hit in response["hits"]:
-            document = hit["document"]
-
             data = {
-                "video_id": document["id"],
-                "title": document["title"],
-                "channel_id": document["channel_id"],
-                "channel_name": document["channel_name"],
-                "matches": []
+                "video_id": hit["document"]["id"],
+                "title": hit["document"]["title"],
+                "channel_id": hit["document"]["channel_id"],
+                "channel_name": hit["document"]["channel_name"],
+                "matches": process_hit(hit, search_requests['searches'][0]['q'])
             }
-
-            query_no_quotes = search_requests['searches'][0]['q']
-            words = query_no_quotes.split()
-            num_words = len(words)
-            for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
-                transcript_casefoled = document["transcript"][index].casefold()
-
-                if num_words != 1 and index + 1 < len(document["transcript"]) and not (query_no_quotes in transcript_casefoled):
-                    document["transcript"][index] += f" {document['transcript'][index + 1]}"
-
-                marked_snippet = document["transcript"][index]
-                for word in words:
-                    marked_snippet = mark_word(marked_snippet, word)
-
-                for i in range(MAX_QUERY_WORD_LIMIT, 1, -1):
-                    marked_snippet = marked_snippet.replace(r"<mark>" * i, "<mark>")
-                    marked_snippet = marked_snippet.replace(r"</mark>" * i, "</mark>")
-
-                data["matches"].append(
-                    {"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
 
             if data["matches"]:
                 result.append(data)
                 debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
-
     return result
 
 
@@ -116,41 +126,19 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
     result = []
 
     for hit in response["hits"]:
-        document = hit["document"]
-
         data = {
-            "video_id": document["id"],
-            "title": document["title"],
-            "channel_id": document["channel_id"],
-            "channel_name": document["channel_name"],
-            "matches": []
+            "video_id": hit["document"]["id"],
+            "title": hit["document"]["title"],
+            "channel_id": hit["document"]["channel_id"],
+            "channel_name": hit["document"]["channel_name"],
+            "matches": process_hit(hit, str(query_params["q"])[1:-1])
         }
-
-        query_no_quotes = str(query_params["q"])[1:-1]
-        words = query_no_quotes.split()
-        num_words = len(words)
-        for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
-            transcript_casefoled = document["transcript"][index].casefold()
-
-            if num_words != 1 and index + 1 < len(document["transcript"]) and not (query_no_quotes in transcript_casefoled):
-                document["transcript"][index] += f" {document['transcript'][index + 1]}"
-
-            marked_snippet = document["transcript"][index]
-            for word in words:
-                marked_snippet = mark_word(marked_snippet, word)
-
-            for i in range(MAX_QUERY_WORD_LIMIT, 1, -1):
-                marked_snippet = marked_snippet.replace(r"<mark>" * i, "<mark>")
-                marked_snippet = marked_snippet.replace(r"</mark>" * i, "</mark>")
-
-            data["matches"].append({"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
 
         if data["matches"]:
             result.append(data)
             debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
     return result
-
 
 def single_word(transcript: list[dict[str, str | list[str]]], query: str) -> list[int]:
     """

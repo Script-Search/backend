@@ -37,7 +37,7 @@ def distribute(items: list, n: int) -> list[list]:
     sublist_length = len(items) // n
     remainder = len(items) % n
 
-    sublists = [[] for _ in range(n)]
+    sublists: list[list] = [[] for _ in range(n)]
     start = 0
 
     for i in range(n):
