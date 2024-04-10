@@ -27,8 +27,8 @@ It accepts JSON payloads with optional parameters such as
 from __future__ import annotations
 
 # Standard Library Imports
-import io
 from time import perf_counter
+from requests.exceptions import ReadTimeout
 
 # Third-Party Imports
 import functions_framework
@@ -87,18 +87,21 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
 
                 try:
                     data["hits"] = search_typesense(copy_search_param)
+                except ReadTimeout as e:
+                    return (jsonify({"error": str(e)}), 408, API_RESPONSE_HEADERS)
                 except ValueError as e:
                     return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
 
             elif video_ids:
                 copy_search_param = TYPESENSE_SEARCH_PARAMS.copy()
-                debug(len(video_ids))
                 if len(video_ids) < len(TYPESENSE_SEARCH_REQUESTS["searches"]):
                     copy_search_param["filter_by"] = f"video_id:{video_ids}"
                     copy_search_param["q"] = f"\"{query}\""
                     
                     try:
                         data["hits"] = search_typesense(copy_search_param)
+                    except ReadTimeout as e:
+                        return (jsonify({"error": str(e)}), 408, API_RESPONSE_HEADERS)
                     except ValueError as e:
                         return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
                 else:
@@ -116,11 +119,18 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
                     for i, sub_search in enumerate(copy_search_requests["searches"]):
                         sub_search["q"] = f"{query}"
                         sub_search["filter_by"] = f"video_id:[{string_ids[i]}]"
-
-                    data["hits"] = search_playlist(copy_search_requests, copy_search_param)
+                    
+                    try:
+                        data["hits"] = search_playlist(copy_search_requests, copy_search_param)
+                    except ReadTimeout as e:
+                        return (jsonify({"error": str(e)}), 408, API_RESPONSE_HEADERS)
+                    except ValueError as e:
+                        return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
             else:
                 try:
                     data["hits"] = search_typesense(copy_search_param)
+                except ReadTimeout as e:
+                    return (jsonify({"error": str(e)}), 408, API_RESPONSE_HEADERS)
                 except ValueError as e:
                     return (jsonify({"error": str(e)}), 400, API_RESPONSE_HEADERS)
         else: # Case when we only scraping is happening

@@ -41,7 +41,7 @@ def init_typesense() -> None:
         })
 
 
-def process_hit(hit: dict, query_no_quotes: str) -> list[dict[str, str|int]]:
+def process_hit(hit: dict[str, int|list[dict[str, str|list]]|dict[str, list]], query_no_quotes: str) -> list[dict[str, str|int]]:
     """
     Processes the hit data.
 
@@ -52,6 +52,7 @@ def process_hit(hit: dict, query_no_quotes: str) -> list[dict[str, str|int]]:
     Returns:
         list[dict[str, str|int]]: The processed hit data
     """
+
     document = hit["document"]
     marked_snippets = []
     words = query_no_quotes.split()
@@ -99,6 +100,8 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
                 "title": hit["document"]["title"],
                 "channel_id": hit["document"]["channel_id"],
                 "channel_name": hit["document"]["channel_name"],
+                "duration": hit["document"]["duration"],
+                "upload_date": hit["document"]["upload_date"],
                 "matches": process_hit(hit, search_requests['searches'][0]['q'])
             }
 
@@ -131,6 +134,8 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
             "title": hit["document"]["title"],
             "channel_id": hit["document"]["channel_id"],
             "channel_name": hit["document"]["channel_name"],
+            "duration": hit["document"]["duration"],
+            "upload_date": hit["document"]["upload_date"],
             "matches": process_hit(hit, str(query_params["q"])[1:-1])
         }
 
