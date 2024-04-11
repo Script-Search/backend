@@ -136,7 +136,7 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
             "channel_name": hit["document"]["channel_name"],
             "duration": hit["document"]["duration"],
             "upload_date": hit["document"]["upload_date"],
-            "matches": process_hit(hit, str(query_params["q"])[1:-1])
+            "matches": process_hit(hit, str(query_params["q"]))
         }
 
         if data["matches"]:
@@ -180,14 +180,27 @@ def multi_word(transcript: list[dict[str, str | list[str]]], words: list[str]) -
     indexes = []
     for i, tokens in enumerate(transcript):
         casefolded = [word.casefold() for word in tokens["matched_tokens"]]
-        if words[0] in casefolded:
-            next_casefolded = [word.casefold() for word in transcript[i + 1]
-                               ["matched_tokens"]] if i + 1 < len(transcript) else ""
-            if next_casefolded:
-                if all(word in casefolded or word in next_casefolded for word in words[1:]):
-                    indexes.append(i)
-            elif all(word in casefolded for word in words[1:]):
+
+        if not casefolded:
+            continue
+
+        index_not_found = 0
+        for word in words:
+            if word not in casefolded:
+                break
+            index_not_found += 1
+        
+        # All words are found in the current snippet
+        if index_not_found == len(words):
+            indexes.append(i)
+            continue
+
+        next_casefolded = [word.casefold() for word in transcript[i + 1]["matched_tokens"]] if i + 1 < len(transcript) else None
+        if next_casefolded:
+            if all(word in casefolded or word in next_casefolded for word in words[index_not_found:]):
                 indexes.append(i)
+        elif all(word in casefolded for word in words[index_not_found:]):
+            indexes.append(i)
     return indexes
 
 
@@ -203,7 +216,7 @@ def find_indexes(transcript: list[dict[str, str | list[str]]], query: str) -> li
         list[int]: The indexes of the query
     """
 
-    debug(f"Finding indexes of {query} in transcript")
+    debug(f"Finding indexes of {query} in transcript.")
     query = query.casefold()
     words = query.split()
 
