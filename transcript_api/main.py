@@ -81,7 +81,7 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
 
         if query: # Case when only searching is happening
             copy_search_param = TYPESENSE_SEARCH_PARAMS.copy() # Normally copy is bad, but this should be fast
-            copy_search_param["q"] = f"\"{query}\""
+            copy_search_param["q"] = f"{query}"
             if channel_id:
                 copy_search_param["filter_by"] = f"channel_id:{channel_id}"
 
@@ -96,7 +96,7 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
                 copy_search_param = TYPESENSE_SEARCH_PARAMS.copy()
                 if len(video_ids) < len(TYPESENSE_SEARCH_REQUESTS["searches"]):
                     copy_search_param["filter_by"] = f"video_id:{video_ids}"
-                    copy_search_param["q"] = f"\"{query}\""
+                    copy_search_param["q"] = f"{query}"
                     
                     try:
                         data["hits"] = search_typesense(copy_search_param)
