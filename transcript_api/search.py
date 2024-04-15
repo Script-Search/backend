@@ -14,10 +14,13 @@ Dependencies:
 
 from __future__ import annotations
 
+# Standard Library Imports
 import re
 
+# Third Party Imports
 from typesense import Client
 
+# File System Imports
 from helpers import debug
 from settings import MAX_QUERY_WORD_LIMIT, TYPESENSE_HOST, TYPESENSE_API_KEY 
 
@@ -58,10 +61,10 @@ def process_hit(hit: dict[str, int|list[dict[str, str|list]]|dict[str, list]], q
     words = query_no_quotes.split()
     num_words = len(words)
     
-    for index in find_indexes(hit["highlight"]["transcript"], query_no_quotes):
-        transcript_casefoled = document["transcript"][index].casefold()
+    for index in find_indexes(document["transcript"], query_no_quotes):
+        transcript_casefolded = document["transcript"][index].casefold()
 
-        if num_words != 1 and index + 1 < len(document["transcript"]) and not (query_no_quotes in transcript_casefoled):
+        if num_words != 1 and index + 1 < len(document["transcript"]) and not (query_no_quotes in transcript_casefolded):
             document["transcript"][index] += f" {document['transcript'][index + 1]}"
 
         marked_snippet = document["transcript"][index]
@@ -156,11 +159,9 @@ def single_word(transcript: list[dict[str, str | list[str]]], query: str) -> lis
     Returns:
         List[int]: The indexes of the query
     """
-
     indexes = []
     for i, snippet in enumerate(transcript):
-        casefolded = [word.casefold() for word in snippet["matched_tokens"]]
-        if query in casefolded:
+        if query in snippet.casefold():
             indexes.append(i)
     return indexes
 
@@ -179,7 +180,7 @@ def multi_word(transcript: list[dict[str, str | list[str]]], words: list[str]) -
 
     indexes = []
     for i, tokens in enumerate(transcript):
-        casefolded = [word.casefold() for word in tokens["matched_tokens"]]
+        casefolded = tokens.casefold()
 
         if not casefolded:
             continue
@@ -195,7 +196,7 @@ def multi_word(transcript: list[dict[str, str | list[str]]], words: list[str]) -
             indexes.append(i)
             continue
 
-        next_casefolded = [word.casefold() for word in transcript[i + 1]["matched_tokens"]] if i + 1 < len(transcript) else None
+        next_casefolded = [word.casefold() for word in transcript[i + 1]] if i + 1 < len(transcript) else None
         if next_casefolded:
             if all(word in casefolded or word in next_casefolded for word in words[index_not_found:]):
                 indexes.append(i)
