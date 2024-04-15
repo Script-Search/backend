@@ -3,9 +3,9 @@ package function
 import (
 	"context"
 	"log"
+	"net"
 	"os"
 	"sync"
-	"net"
 
 	"cloud.google.com/go/pubsub"
 	"google.golang.org/api/option"
@@ -21,7 +21,9 @@ var (
 	topic                  *pubsub.Topic
 	topic_name             = "SyncVideoBatch"
 
-	localAddr *net.UDPAddr
+	// Program Globals
+	localAddr          *net.UDPAddr
+	YT_PLAYER_ENDPOINT = "https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyDCU8hByM-4DrUqRUYnGn-3llEO78bcxq8"
 )
 
 func FixDir() {
@@ -52,6 +54,6 @@ func DebugAddr() {
 		log.Fatalf("debugaddr init error: %v", err)
 	}
 
-     defer conn.Close()
-     localAddr = conn.LocalAddr().(*net.UDPAddr)
+	defer conn.Close()
+	localAddr = conn.LocalAddr().(*net.UDPAddr)
 }
