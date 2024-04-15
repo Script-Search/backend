@@ -23,10 +23,10 @@ func init() {
 }
 
 // Should take a url, Client (clientname, version, headers)
-func send(ctx context.Context, yid string, ch chan *PlayerResponse, errCh chan string, wg *sync.WaitGroup) {
+func send(yid string, ch chan *PlayerResponse, errCh chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	tmpPlayerResponse, err := SendPlayerReq(ctx, yid, "web")
+	tmpPlayerResponse, err := SendPlayerReq(yid, "web")
 	if err != nil {
 		errCh <- err.Error()
 		return
@@ -40,7 +40,7 @@ func send(ctx context.Context, yid string, ch chan *PlayerResponse, errCh chan s
 	uploadDate := ParseUploadDate(tmpPlayerResponse.Microformat.PlayerMicroformatRenderer.UploadDate)
 
 	if IsAgeGated(tmpPlayerResponse) {
-		tmpPlayerResponse, err = SendPlayerReq(ctx, yid, "embedded")
+		tmpPlayerResponse, err = SendPlayerReq(yid, "embedded")
 		if err != nil {
 			errCh <- err.Error()
 			return
@@ -53,7 +53,7 @@ func send(ctx context.Context, yid string, ch chan *PlayerResponse, errCh chan s
 		return
 	}
 
-	subtitles, timestamps, err := SendTimedTextReq(ctx, tmpPlayerResponse, yid)
+	subtitles, timestamps, err := SendTimedTextReq(tmpPlayerResponse)
 	if err != nil {
 		errCh <- fmt.Sprintf("err invalid timed text ttml for %s: %s", yid, err)
 		return
@@ -107,7 +107,7 @@ func consumeBatchedUrls(ctx context.Context, e event.Event) error {
 	for _, videoId := range videoIds {
 		if videoId != "" {
 			wg.Add(1)
-			go send(ctx, videoId, ch, errCh, &wg)
+			go send(videoId, ch, errCh, &wg)
 		}
 	}
 
@@ -129,8 +129,8 @@ func consumeBatchedUrls(ctx context.Context, e event.Event) error {
 	}
 
 	// Output valid urls, then errors
-	fmt.Println("Valid PR's: ", localAddr, len(playerResponses))
-	fmt.Println("Invalid PR's: ", localAddr, errorResponses)
+	log.Println("Valid PR's: ", localAddr, len(playerResponses))
+	log.Println("Invalid PR's: ", localAddr, errorResponses)
 
 	// Send the batch request using responses from chTT
 	if len(playerResponses) > 0 {
