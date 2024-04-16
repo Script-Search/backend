@@ -140,7 +140,7 @@ class TestSearch(TestCase):
     def test_search_no_filter(self, mocktype):
         mocktype.return_value = dict
         copy_search_params = TYPESENSE_SEARCH_PARAMS.copy()
-        copy_search_params["q"] = "\"game\""
+        copy_search_params["q"] = "game"
 
         result = search_typesense(copy_search_params)
         self.assertIsNotNone(result)
@@ -156,7 +156,7 @@ class TestSearch(TestCase):
     def test_search_filter_channel(self, mocktype):
         mocktype.return_value = dict
         copy_search_params = TYPESENSE_SEARCH_PARAMS.copy()
-        copy_search_params["q"] = "\"game\""
+        copy_search_params["q"] = "game"
         copy_search_params["filter_by"] = "channel_id:UCYzPXprvl5Y-Sf0g4vX-m6g"
 
         result = search_typesense(copy_search_params)
@@ -171,7 +171,7 @@ class TestSearch(TestCase):
     def test_search_filter_playlist(self, mocktype):
         mocktype.return_value = dict
         copy_search_params = TYPESENSE_SEARCH_PARAMS.copy()
-        copy_search_params["q"] = "\"game\""
+        copy_search_params["q"] = "game"
         copy_search_params["video_ids"] = '["0baCL9wwJTA","RRP_GFSGrDA","gOFrQs_13mQ","dXBapNjnab4","StSGz5dx52s","kAT_xX-Xk6c","YlQ53oOQPRo","-pb7MrRnPv0","-pVg8ZnSARo","mVTbjsQbG1w","e5e1z3A3cfo","3-LJtJKYXrA","B_NscD2IECQ","DzioXvXd5fE","VUQs9prUia0","T0LYsNXkUX0","cz9ATZecggQ","2WKfYPAP5DQ","EYiil5yOHjQ","D1jTOSrwpOQ","9xgtuRqBS5A","mjfpixY7WdE","ecf7vPw8A2o","m9-mg4m6IW4","7vEXqbPCgao","RTSMxUsh3-g","HKx_VfcPJlU","Y1xzL8I9sAE","X0J2Lq2z2Vk","i__ZXVjCl_I","0JhTJRl4uew","X0xRJRF-g5w","ZaA7CqEK5Cc","QP3zjbr_U28","4u9KktKMLUg","1gfCG4bYVYM","npxaoLRfeXA","Y2_CN0StX5U","-UyZeZAeXPw","j1-D08FV780","AVFlqoQjh1M","2w_NQXb2KX4","3UC9qVNtCag","hQX0_MoBe9s","HP_BwlBgLb4","HYGIfWNe4NE","sZ6hp3keToo","R6rf2RPAe7s","aynVOIjCXvU","a5XKyiaw97c","Bb4dhojfB0o","RO0yTly_fqo","ivxXd__504o","bTbmOAbmrUk","kyW1Mo_uCDg","KhHIBFgaMCc","vlhsz5flDs4","4y_c2aCQ9hY","eACSzFJpetI","8_8BSdyEwoM","ZYSu2xg5c5w","qK1oN9dBs5A","89ZycCcH7sc","JU4qoXp3Sec","qjrwwV-bMTI","ujO3XtcPZ_4","LJBsRgSaVLU","i61Wcnjq-0Q","Lshh01K5JyI","zHACgmQkw3Q","qbJhi5Y0pLE","Z47RnEMnniQ"]'
     
         result = search_typesense(copy_search_params)
