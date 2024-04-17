@@ -8,7 +8,7 @@ steps:
     echo "$$CREDENTIALS_PUBSUB_JSON" > credentials_pub_sub.json &&
     gcloud functions deploy transcript-api \
       --entry-point=transcript_api \
-      --runtime=python39 \
+      --runtime=python310 \
       --region=us-central1 \
       --gen2
   secretEnv: ['CREDENTIALS_JSON', 'CREDENTIALS_PUBSUB_JSON']
