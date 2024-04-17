@@ -16,6 +16,7 @@ from __future__ import annotations
 
 # Standard Library Imports
 import re
+from time import perf_counter
 
 # Third Party Imports
 from typesense import Client
@@ -127,7 +128,11 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
     debug(f"Searching for {query_params['q']} in transcripts.")
 
     init_typesense()
+    
+    start = perf_counter()
     response = TYPESENSE_CLIENT.collections["transcripts"].documents.search(query_params)
+    end = perf_counter()
+    debug(f"Search took {end - start} seconds.")
 
     result = []
 
