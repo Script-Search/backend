@@ -251,6 +251,19 @@ class TestSearch(TestCase):
         self.assertTrue("matches" in result[0])
 
     @patch('search.search_playlist')
+    def test_search_phrase_multi_line(self, mocktype):
+        copy_search_params = TYPESENSE_SEARCH_PARAMS.copy()
+        copy_search_params["q"] = "mega knight"
+
+        result = search_typesense(copy_search_params)
+        self.assertIsNotNone(result)
+        self.assertTrue("video_id" in result[0])
+        self.assertTrue("channel_id" in result[0])
+        self.assertTrue("title" in result[0])
+        self.assertTrue("channel_name" in result[0])
+        self.assertTrue("matches" in result[0])
+
+    @patch('search.search_playlist')
     def test_search_playlist(self, mocktype):
         playlist_url = r"https://www.youtube.com/playlist?list=PLBRObSmbZluRiGDWMKtOTJiLy3q0zIfd7"
         mocktype.return_value = dict
