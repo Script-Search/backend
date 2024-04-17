@@ -21,6 +21,10 @@ run: venv
 test:
 	$(PYTHON) test.py -v
 
+coverage:
+	coverage run -m unittest test.py
+	coverage report -m
+
 clean:
 	rm -rf __pycache__
 	rm -rf venv

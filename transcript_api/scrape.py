@@ -103,9 +103,6 @@ def process_url(url: str) -> dict[str, str|None]:
         
         case URLType.CHANNEL:
             data["channel_id"], video_ids = get_channel_videos(url)
-
-        case _:
-            raise ValueError(f"Invalid URL: {url}")
         
     global PUBLISHER, TOPIC_PATH # pylint: disable=global-statement
     if PUBLISHER is None:

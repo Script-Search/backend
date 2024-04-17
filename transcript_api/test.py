@@ -28,7 +28,8 @@ class TestGetURLType(TestCase):
     @patch('scrape.get_url_type')
     def test_get_url_type_invalid(self, mock_type):
         invalid_url = r"https://www.google.com"
-        self.assertRaises(ValueError, get_url_type, invalid_url)
+        with self.assertRaises(ValueError):
+            get_url_type(invalid_url)
 
 class TestExtractVideos(TestCase):
     @patch('scrape.get_video')
@@ -67,6 +68,26 @@ class TestExtractVideos(TestCase):
         self.assertIsInstance(video_ids, list)
         self.assertIsInstance(video_ids[0], str)
         self.assertEqual(len(video_ids), MAX_VIDEO_LIMIT)
+
+    @patch('scrape.get_channel_videos')
+    def test_get_channel_videos_no_shorts(self, mock_type):
+        channel_url = r"https://www.youtube.com/@OverSimplified"
+        expected_channel_id = r"UCNIuvl7V8zACPpTmmNIqP2A"
+        mock_type.return_value = tuple
+
+        init_ydl_client()
+        channel_id, video_ids = get_channel_videos(channel_url)
+        self.assertIsInstance(channel_id, str)
+        self.assertEqual(channel_id, expected_channel_id)
+
+        self.assertIsInstance(video_ids, list)
+        self.assertIsInstance(video_ids[0], str)
+        self.assertEqual(len(video_ids), 32)
+
+    @patch('scrape.get_channel_videos')
+    def test_get_empty_channel_videos(self, mock_type):
+        channel_url = r"https://www.youtube.com/@huylai2024"
+        self.assertRaises(ValueError, get_channel_videos, channel_url)
 
 class TestProcessUrl(TestCase):
     @patch('scrape.process_url')
@@ -259,4 +280,3 @@ class TestSearch(TestCase):
 
 if __name__ == '__main__':
     main()
-
