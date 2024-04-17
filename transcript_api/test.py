@@ -33,13 +33,12 @@ class TestGetURLType(TestCase):
 class TestExtractVideos(TestCase):
     @patch('scrape.get_video')
     def test_get_video(self, mock_type):
-        video_url = r"https://www.youtube.com/watch?v=qaKbCsV53sg"
+        video_url = r"https://www.youtube.com/watch?v=2rkAL9ehPq8"
         mock_type.return_value = str
 
         video_id = get_video(video_url)
-        print(video_id)
 
-        self.assertEqual(video_id, "qaKbCsV53sg")
+        self.assertEqual(video_id, "2rkAL9ehPq8")
 
     @patch('scrape.get_playlist_videos')
     def test_get_playlist_videos(self, mock_type):
@@ -71,6 +70,19 @@ class TestExtractVideos(TestCase):
 
 class TestProcessUrl(TestCase):
     @patch('scrape.process_url')
+    def test_process_url_video(self, mock_type):
+        video_url = r"https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        mock_type.return_value = dict
+
+        result = process_url(video_url)
+
+        self.assertTrue("video_ids" in result)
+        self.assertEqual(len(result["video_ids"]), 1)
+
+        self.assertTrue("channel_id" in result)
+        self.assertIsNone(result["channel_id"])
+
+    @patch('scrape.process_url')
     def test_process_url_playlist(self, mock_type):
         playlist_url = r"https://www.youtube.com/playlist?list=PLBRObSmbZluRiGDWMKtOTJiLy3q0zIfd7"
         mock_type.return_value = dict
@@ -97,35 +109,19 @@ class TestProcessUrl(TestCase):
         self.assertTrue("channel_id" in result)
         self.assertEqual(result["channel_id"], "UCYzPXprvl5Y-Sf0g4vX-m6g")
 
-    @patch('scrape.process_url')
-    def test_process_url_video(self, mock_type):
-        video_url = r"https://www.youtube.com/watch?v=jNQXAC9IVRw"
-        mock_type.return_value = dict
-
-        result = process_url(video_url)
-
-        self.assertTrue("video_ids" in result)
-        self.assertEqual(len(result["video_ids"]), 1)
-
-        self.assertTrue("channel_id" in result)
-        self.assertIsNone(result["channel_id"])
-
 class TestHelpers(TestCase):
     @patch('helpers.distribute')
     def test_distribute(self, mock_type):
-        playlist_url = r"https://www.youtube.com/playlist?list=PLmYjNW5fJqQyW4dEwB_-f7LKKNr8pCE95"
-        
-        init_ydl_client()
-        video_ids = get_playlist_videos(playlist_url)
-        self.assertEqual(len(video_ids), 194)
+        num_blocks = 5 
+        video_ids = ['c0yuuZO8m2k', 'xqwOyV5smbk', 'YRshnXmNE98', '18WbGcZlwAk', 'kO5GGQYO55E', '7ijG6G-CSu8', 'cCQ2qeQTuOc', 'n18y3FDNuGQ', 'QUXqJrtJKt8', 'GvD0oX5Tzjo', 'eiZ5pGxjzcI', 'h8-9LdW26y0', 'AvIXVkK1qpg', 'V0ew5B7FR4s', '13Ul-P8n4fo', '36edJh-Ui8w', 'TkNlrKcWzm4', 'ZEhguiVoqpc', 'T4g3C1kDETI', 'n5VOcqSt_7A', 'lL_CEWRcvnU', 'M4Tw8GP4jUs', 'Lv0rBno4qL8', '7Cfak2_meq0', '5FGvoo95mAg', 'lmCt4W8UMLE', '1PvVHOtMvYY', '76uUho_mNeM', '0eEv9sEMJNw', 'rcHcVjnO1gY', 'IypNr1AD3WA', 'Cr7mI7TAVwM', 'T5nV2DSAJtY', '0MUyykKYd_A', 'K2MZINKrr6w', '7K7HeFbd4t8', 'SrX-RPpAYkk', 'eve8V0MhdB8', 'wHSHsSmpoIY', '7kqZEdjLYpM', 'S9O1UGbtwNk', 'HXx2ToETj28', 'lM2IH9OVO8U', 'VWZZYFxPoy0', 'XUIqmEDNG5U', 'YN6wVzJAXD4', 'VF6uJ-sG5Vs', 'EYoRF-3PieE', 'k_yDYjBUWzg', '4SvYSugBMjc', 'vPgNPA1cJrY', 'jWT8C0AtBSY', '5MVbKNV19vQ', 'pE3N517N_-Q', '1dGjzM1asOg', 'mM-L_rmjRxM', 'RzlzmV4KzEY', 'ljKynkWKLew', 'v2YX4RcM9KA', 'RaIChmx0L4Y', 'hRCyLMq4pEg', '55wVYLmf6vs', 'I1uKIizYrtw', 'dN07kwJmTBw', 'txgd6WFs4z8', 'd6-mtiYrVn8', '5gr3y1Z6FbI', 'KGTIsei_lNY', 'gCkM-CbstJg', 'VxKM6rzDsyc', 'IvO2tdjvcvA', 'dJqEfvzVscM', 'n1fC0B1QrmU', 'Bwrx2u_R3fo', 't2xHU8QtI0U', 'fxHujNz2-Ps', 'nICptERl0rI', 'RNZ6JecZ2aM', 'CEnFNkT86iA', 'AtAH44bXbc8', 'Sm2uvwnfewo', 'EmrKgUgpgJg', 'dgB3PxkH9-A', 'n65MjKibbGA', '9-5jwyx9PX0', '-cDaJhiA_14', 'kGp_vJq-2aw', 'vx4CBuOMi_I', 'Eog2o7k3rDE', 'AiTFPXYMjxA', 'rUEPItWpkjw', 'rcjJS3I-vMM', '2VawZHybZaE', 'JTGXckgaSFQ', 'q27sfrkVecU', 'uh-6xdtDwwk', 'fgS1blcp51A', 'f3GRVa_NTMQ', 'LlglgtHBS6k', 'dFERcR5363k', 'QM5m2Uu5RZI', 'Jiz6o1htkX8', 'dUQcCa_-hCE', 'tsp4wb2wPgU', 'lgP8Sa4Ddhc', '82bXVPC_kQ0', 'Ff74UHL0nRE', 'oscLnpX1hwY', '23wEjwu_fGQ', 'GTy7EDP1hdE', 'BGEuwsLFjrk', 'nz187mPALAo', 'Ux77MfHnXpc', 'NrwxVEq625o', 'aI7UOfq1HlI', 'g95SUXXmulc', 'QjOTHPr7jlg', 'lQyN9jdVO0Q', '2qWH_ZoIIMM', 'qNYwHjbVgpM', 'nFLPIC701tk', 'sWtWZsS4-OE', 'UKsGQmkZvGU', 'zbSiaIz23jk', 'BN19jPOI6gc', 'rUwEQHJVKQ8', '9gh3jMBZM-E', 'p9VnrOP61H4', 'T98wkC6mIrs', 'i-f1cLc-0EU', 'KhO7jKBYgkw', 'V__njos2-go', 'zqlKFg6jAZY', 'UBXfxEV6Yc8', '4Gsqceni_as', '33j-y4RYShM', 'XZc8xtAPb4A', 'Wop52Wn6DTM', 'IeytGOkr-6A', 'fz6VenBEJDY', 'yWWf34P0Dxc', 'FU2NZIjG41s', 'ynwHBUCcVBM', 'I_BUebzsVBQ', 'ALQNwOhFJcU', 'eV40Mgqi2M4', 'eHeKVLC46UU', 'oQPy91IsNbw', 'clIfgvFqpTg', '79nR17JDErA', 'mfDOUyCAQPw', 'QHFQjruqV2s', 'k9BCo5lLvE0', 'rPUDq3ad8lI', 'ccJpBXXQ384', 'wnO0H8sBgRY', '2h674E1ei3U', 'VM9ZHb4uJ5g', '9TCtOMKTaMU', 'dSxxsnOc3w0', 'wCGhkB1wGmk', '8vdRsO-Ad_A', 'ayTvInZjIqs', 'NLgzdRNVKWA', '0BUilXBCvDE', '_hSaxgom__M', 'Z5zq5wPG2dg', 'KBjo5A3rN-c', 'JaF84VzEt54', 'lzw4eDvwgrs', 'J6E0AuWUAwU', 'SLzlOznq8Qo', 'jocTiBV923U', 'nQjrM9Sl6Gg', '4cIGUpedGOw', 'ldMtM6hOm3E', 'Ud-5L9h5nrc', 'FIUxXmcZlnI', 'SMatb23ASzY', 'noVqSnU_I0Q', 'uM7RfeRcPz4', '0YGT60oO3FQ', '7Oc67Bos9_s', 'TyaHveKt6TM', 'CYyIV66yiFs', 'h0XhJUSE6X8', 'JzKtwQzTFQ4', 'bE3NjeAfVlk', 'ACRLdLQQ-FQ', 'ScCyy_Cux-w', 'rJsF9h0m8T4', 'Jazi8Z4sFcw', '963E0dTaXAE', 'liACqm2Y5tM']
 
-        result = distribute(video_ids, 5)
-        self.assertEqual(len(result), 5)
-        self.assertEqual(len(result[0]), 194//5 + 1)
-        self.assertEqual(len(result[1]), 194//5 + 1)
-        self.assertEqual(len(result[2]), 194//5 + 1)
-        self.assertEqual(len(result[3]), 194//5 + 1)
-        self.assertEqual(len(result[4]), 194//5)
+        result = distribute(video_ids, num_blocks)
+        self.assertEqual(len(result), num_blocks)
+        self.assertEqual(len(result[0]), 194//num_blocks + 1)
+        self.assertEqual(len(result[1]), 194//num_blocks + 1)
+        self.assertEqual(len(result[2]), 194//num_blocks + 1)
+        self.assertEqual(len(result[3]), 194//num_blocks + 1)
+        self.assertEqual(len(result[4]), 194//num_blocks)
 
 class TestMarkWord(TestCase):
     @patch('search.mark_word')
