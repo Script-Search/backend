@@ -2,6 +2,7 @@
 *.ttml
 credentials.json
 credentials*.json
+.coverage
 
 __pycache__/
 node_modules/
@@ -10,4 +11,3 @@ cmd/
 venv/
 .venv
 .env
-
