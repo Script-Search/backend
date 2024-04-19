@@ -34,7 +34,7 @@ BANNED_CHARS: list[str] = ["!", "@", "#", "$", "%", "^", "&", "*",
 MAX_VIDEO_LIMIT: int = 250
 VALID_VIDEO_REGEX: str = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)(?![playlist|channel])([\w\-]+)(\S+)?$"
 VALID_PLAYLIST_REGEX: str = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(.*)[\&|\?](list=[\w\-]+)(\&index=[0-9]*)?(\&si=[\w\-]+)?$"
-VALID_CHANNEL_REGEX: str = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(((c\/)?[\w\-\.]+)|(\@[\w\-\.]{3,30})|(channel\/[\w\-]+))(\?si=[\w\-]+)?(\/videos|\/featured)?$"
+VALID_CHANNEL_REGEX: str = r"^((?:https?:)?\/\/)?((?:www|m)\.)?(youtube\.com)\/(((c\/)?[\w\-\.]+)|(\@[\w\-\.]{3,30})|(channel\/[\w\-]+)|(user\/[\w\-]+))(\?si=[\w\-]+)?(\/videos|\/featured)?$"
 YDL_OPS: dict[str, bool | str | dict[str, dict[str, list[str]]]] = {
     "quiet": True,
     "extract_flat": True,
