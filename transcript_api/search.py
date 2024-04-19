@@ -17,15 +17,18 @@ from __future__ import annotations
 # Standard Library Imports
 import re
 from time import perf_counter
+from collections.abc import Generator
+from typing import Pattern
 
 # Third Party Imports
 from typesense import Client
 
 # File System Imports
 from helpers import debug
-from settings import MAX_QUERY_WORD_LIMIT, TYPESENSE_HOST, TYPESENSE_API_KEY 
+from settings import TYPESENSE_HOST, TYPESENSE_API_KEY 
 
 TYPESENSE_CLIENT: Client = None
+cleantext = re.compile(r'[^a-z0-9 ]+')
 
 def init_typesense() -> None:
     """
@@ -44,42 +47,6 @@ def init_typesense() -> None:
             "connection_timeout_seconds": 4
         })
 
-
-def process_hit(hit: dict[str, int|list[dict[str, str|list]]|dict[str, list]], query_no_quotes: str) -> list[dict[str, str|int]]:
-    """
-    Processes the hit data.
-
-    Args:
-        hit (dict[str, str|list[str]]): The hit data
-        query_no_quotes (str): The query without quotes
-
-    Returns:
-        list[dict[str, str|int]]: The processed hit data
-    """
-
-    document = hit["document"]
-    marked_snippets = []
-    words = query_no_quotes.split()
-    num_words = len(words)
-    
-    for index in find_indexes(document["transcript"], query_no_quotes):
-        transcript_casefolded = document["transcript"][index].casefold()
-
-        if num_words != 1 and index + 1 < len(document["transcript"]) and not (query_no_quotes in transcript_casefolded):
-            document["transcript"][index] += f" {document['transcript'][index + 1]}"
-
-        marked_snippet = document["transcript"][index]
-        for word in words:
-            marked_snippet = mark_word(marked_snippet, word)
-
-        for i in range(MAX_QUERY_WORD_LIMIT, 1, -1):
-            marked_snippet = marked_snippet.replace(r"<mark>" * i, "<mark>")
-            marked_snippet = marked_snippet.replace(r"</mark>" * i, "</mark>")
-
-        marked_snippets.append({"snippet": marked_snippet, "timestamp": document["timestamps"][index]})
-
-    return marked_snippets
-
 def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_params: dict[str, object]) -> list[dict[str, str]]:
     """
     Searches for a query in the playlist data.
@@ -95,8 +62,10 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
 
     init_typesense()
     responses = TYPESENSE_CLIENT.multi_search.perform(search_requests, query_params)
-    result = []
 
+    cleaned_query = cleantext.sub('', search_requests['searches'][0]['q']).lower()
+    query_pattern = re.compile(r"\b" + re.escape(cleaned_query) + r"\b", re.IGNORECASE)
+    result = []
     for response in responses["results"]:
         for hit in response["hits"]:
             data = {
@@ -106,14 +75,12 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
                 "channel_name": hit["document"]["channel_name"],
                 "duration": hit["document"]["duration"],
                 "upload_date": hit["document"]["upload_date"],
-                "matches": process_hit(hit, search_requests['searches'][0]['q'])
+                "matches": process_hit(hit, cleaned_query, query_pattern)
             }
 
             if data["matches"]:
                 result.append(data)
-                debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
     return result
-
 
 def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | list[dict[str, str | int]]]]:
     """Searches for a query in the transcript data.
@@ -134,8 +101,9 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
     end = perf_counter()
     debug(f"Search took {end - start} seconds.")
 
+    cleaned_query = cleantext.sub('', query_params["q"]).lower()
+    query_pattern = re.compile(r"\b" + re.escape(cleaned_query) + r"\b", re.IGNORECASE)
     result = []
-
     for hit in response["hits"]:
         data = {
             "video_id": hit["document"]["id"],
@@ -144,109 +112,110 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
             "channel_name": hit["document"]["channel_name"],
             "duration": hit["document"]["duration"],
             "upload_date": hit["document"]["upload_date"],
-            "matches": process_hit(hit, str(query_params["q"]))
+            "matches": process_hit(hit, cleaned_query, query_pattern)
         }
 
         if data["matches"]:
             result.append(data)
-            debug(f'{data["video_id"]} has {len(data["matches"])} matches.')
 
     return result
 
-def single_word(transcript: list[dict[str, str | list[str]]], query: str) -> list[int]:
+def process_hit(hit: dict[str, int|list[dict[str, str|list]]|dict[str, list]], query_no_quotes: str, query_pattern: Pattern) -> list[dict[str, str|int]]:
     """
-    Finds the indexes of the query in the transcript
-        topic_path = publisher.topic_path("ScriptSearch", "YoutubeURLs")
+    Processes the hit data.
+
+    Args:
+        hit (dict[str, str|list[str]]): The hit data
+        query_no_quotes (str): The query without quotes
+        query_pattern (Pattern): The query as a regex pattern
+
+    Returns:
+        list[dict[str, str|int]]: The processed hit data
+    """
+
+    document = hit["document"]
+    marked_snippets = []
+
+    # Preprocess the transcript
+    new_transcript = [cleantext.sub('', sentence.lower()) for sentence in document["transcript"]]
+    for index, sentence in enumerate(sentence_search(document["transcript"], new_transcript, query_no_quotes, query_pattern)):
+        if not sentence: continue
+
+        marked_snippets.append({"snippet": mark_word(sentence, query_pattern), "timestamp": document["timestamps"][index]})
+
+    return marked_snippets
+
+def sentence_search(transcript: list[dict[str, str | list[str]]], new_transcript: list[dict[str, str | list[str]]], query: str, query_pattern: Pattern) -> Generator[str]:
+    """
+    Returns a sentence if query found (handles multi-word as well)
+
     Args:
         transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data
+        transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data, cleaned and preprocessed
         query (str): The query
 
     Returns:
-        List[int]: The indexes of the query
+        Generator[str]: sentence yielded to create a generator (saving memory)
     """
-    indexes = []
-    for i, snippet in enumerate(transcript):
-        if query in snippet.casefold():
-            indexes.append(i)
-    return indexes
-
-
-def multi_word(transcript: list[dict[str, str | list[str]]], words: list[str]) -> list[int]:
-    """
-    Finds the indexes of the query in the transcript
-
-    Args:
-        transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data
-        words (list[str]): The query words
-
-    Returns:
-        list[int]: The indexes of the query
-    """
-
-    indexes = []
-    for i, tokens in enumerate(transcript):
-        casefolded = tokens.casefold()
-
-        if not casefolded:
-            continue
-
-        index_not_found = 0
-        for word in words:
-            if word not in casefolded:
-                break
-            index_not_found += 1
-        
-        # All words are found in the current snippet
-        if index_not_found == len(words):
-            indexes.append(i)
-            continue
-
-        next_casefolded = [word.casefold() for word in transcript[i + 1]] if i + 1 < len(transcript) else None
-        if next_casefolded:
-            if all(word in casefolded or word in next_casefolded for word in words[index_not_found:]):
-                indexes.append(i)
-        elif all(word in casefolded for word in words[index_not_found:]):
-            indexes.append(i)
-    return indexes
-
-
-def find_indexes(transcript: list[dict[str, str | list[str]]], query: str) -> list[int]:
-    """
-    Finds the indexes of the query in the transcript
-
-    Args:
-        transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data
-        query (str): The query
-
-    Returns:
-        list[int]: The indexes of the query
-    """
-
-    debug(f"Finding indexes of {query} in transcript.")
-    query = query.casefold()
     words = query.split()
-
-    if len(words) > MAX_QUERY_WORD_LIMIT:
-        raise ValueError(f"""Query is too long. Please limit to
-                         {MAX_QUERY_WORD_LIMIT} words or less.""")
-
-    return single_word(transcript, query) \
-        if len(words) == 1 \
-        else multi_word(transcript, words)
-
-
-def mark_word(sentence: str, word: str) -> str:
+    skip_next = False # If this is set to true then we know that previous snippet current sentence
+    for i, sentence in enumerate(new_transcript):
+        if skip_next:
+            skip_next = False
+            yield None
+            continue
+        if len(words) == 1:
+            yield transcript[i] if single_word(sentence, query_pattern) else None
+        else:
+            num_sentences = multi_word(sentence, new_transcript[i+1] if i != len(transcript)-1 else None, query)
+            if num_sentences == 1:
+                yield transcript[i]
+            elif num_sentences == 2:
+                skip_next = True
+                yield transcript[i] + " " + transcript[i+1]
+            else:
+                yield None
+        
+def single_word(sentence: str, query_pattern: Pattern) -> str|None:
     """
-    Takes every instance of word within a sentence and wraps it in <mark> tags.
+    Finds the query within the sentence if it exists
+    Args:
+        sentence (str): The sentence within the transcript
+        query_pattern (Pattern): The query as a regex pattern
+
+    Returns:
+        str|None: The sentence if it exists else None
+    """
+    return re.search(query_pattern, sentence)
+
+def multi_word(sentence: str, next_sentence: str|None, query: str) -> str|None:
+    """
+    Finds the indexes of the query in the sentences
+
+    Args:
+        sentence (str): The current sentence to search for string in
+        next_sentence str|None: The next sentence to append to current for searching
+        query (str): The query or the phrase to do sorta-exact matching on
+
+    Returns:
+        str|None: The sentence if the query exists else None
+    """
+    if query in sentence:
+        return 1
+    elif next_sentence and query in (new_sentence := sentence + " " + next_sentence): # walrus operator
+        return 2
+    return 0
+
+def mark_word(sentence: str, query_pattern: Pattern) -> str:
+    """
+    Takes every instance of word or phrase within a sentence and wraps it in <mark> tags.
     This algorithm will also ignore cases.
 
     Args:
         sentence (str): The sentence
-        word (str): The word
+        query_pattern (Pattern): The query precompiled
 
     Returns:
         str: The marked sentence
     """
-
-    pattern = re.compile(r"\b" + re.escape(word) + r"\b", re.IGNORECASE)
-    return pattern.sub(r"<mark>\g<0></mark>", sentence)
+    return query_pattern.sub(r"<mark>\g<0></mark>", sentence)
