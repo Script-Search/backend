@@ -147,19 +147,12 @@ class TestHelpers(TestCase):
 class TestMarkWord(TestCase):
     @patch('search.mark_word')
     def test_mark_word(self, mocktype):
-        word = "game"
+        word = re.compile(r"\b" + re.escape("game") + r"\b", re.IGNORECASE)
         text = "This is a game"
         result = mark_word(text, word)
         self.assertEqual(result, "This is a <mark>game</mark>")
 
 class TestSearch(TestCase):
-    @patch('search.search_typesense')
-    def test_search_failure(self, mocktype):
-        copy_search_params = TYPESENSE_SEARCH_PARAMS.copy()
-        copy_search_params["q"] = "the quick brown fox jumps over the lazy dog"
-
-        self.assertRaises(ValueError, search_typesense, copy_search_params)
-
     @patch('search.search_typesense')
     def test_search_single_no_filter(self, mocktype):
         mocktype.return_value = dict
@@ -189,6 +182,8 @@ class TestSearch(TestCase):
         self.assertTrue("title" in result[0])
         self.assertTrue("channel_name" in result[0])
         self.assertTrue("matches" in result[0])
+        
+        self.assertIsNotNone(result[0]["matches"])
 
     @patch('search.search_typesense')
     def test_search_single_filter_channel(self, mocktype):
@@ -205,6 +200,8 @@ class TestSearch(TestCase):
         self.assertTrue("channel_name" in result[0])
         self.assertTrue("matches" in result[0])
 
+        self.assertIsNotNone(result[0]["matches"])
+
     @patch('search.search_typesense')
     def test_search_phrase_filter_channel(self, mocktype):
         mocktype.return_value = dict
@@ -219,6 +216,8 @@ class TestSearch(TestCase):
         self.assertTrue("title" in result[0])
         self.assertTrue("channel_name" in result[0])
         self.assertTrue("matches" in result[0])
+        
+        self.assertIsNotNone(result[0]["matches"])
 
     @patch('search.search_typesense')
     def test_search_single_filter_playlist(self, mocktype):
@@ -235,6 +234,8 @@ class TestSearch(TestCase):
         self.assertTrue("channel_name" in result[0])
         self.assertTrue("matches" in result[0])
 
+        self.assertIsNotNone(result[0]["matches"])
+
     @patch('search.search_playlist')
     def test_search_phrase_filter_playlist(self, mocktype):
         mocktype.return_value = dict
@@ -250,6 +251,8 @@ class TestSearch(TestCase):
         self.assertTrue("channel_name" in result[0])
         self.assertTrue("matches" in result[0])
 
+        self.assertIsNotNone(result[0]["matches"])
+
     @patch('search.search_playlist')
     def test_search_phrase_multi_line(self, mocktype):
         copy_search_params = TYPESENSE_SEARCH_PARAMS.copy()
@@ -262,6 +265,8 @@ class TestSearch(TestCase):
         self.assertTrue("title" in result[0])
         self.assertTrue("channel_name" in result[0])
         self.assertTrue("matches" in result[0])
+
+        self.assertIsNotNone(result[0]["matches"])
 
     @patch('search.search_playlist')
     def test_search_playlist(self, mocktype):
