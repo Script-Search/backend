@@ -65,6 +65,8 @@ TYPESENSE_SEARCH_PARAMS = {
     "limit": 250,
     "highlight_start_tag": "",
     "highlight_end_tag": "",
+    "highlight_fields":"none_so_no_fields_highlighted",
+    "enable_highlight_v1": False,
 }
 TYPESENSE_SEARCH_REQUESTS = {
     "searches": [

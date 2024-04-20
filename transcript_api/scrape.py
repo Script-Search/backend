@@ -91,23 +91,19 @@ def process_url(url: str) -> dict[str, str|None]:
     }
 
     video_ids = []
-    if url_type == URLType.VIDEO:
-        video_id = get_video(url)
-        video_ids.append(video_id)
-        data["video_ids"] = video_ids
+    match url_type:
+        case URLType.VIDEO:
+            video_id = get_video(url)
+            video_ids.append(video_id)
+            data["video_ids"] = video_ids
 
-    elif url_type == URLType.PLAYLIST:
-        video_ids = get_playlist_videos(url)
-
-        # Prepare video_ids for filtering
-        data["video_ids"] = video_ids
-
-    elif url_type == URLType.CHANNEL:
-        data["channel_id"], video_ids = get_channel_videos(url)
-    
-    else:
-        raise ValueError(f"Invalid URL: {url}")
-    
+        case URLType.PLAYLIST:
+            video_ids = get_playlist_videos(url)
+            data["video_ids"] = video_ids
+        
+        case URLType.CHANNEL:
+            data["channel_id"], video_ids = get_channel_videos(url)
+        
     global PUBLISHER, TOPIC_PATH # pylint: disable=global-statement
     if PUBLISHER is None:
         cred = service_account.Credentials.from_service_account_file(

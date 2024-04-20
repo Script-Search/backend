@@ -80,6 +80,10 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
         query = request_json.get("query")
 
         if query: # Case when only searching is happening
+            if len(query.split()) > MAX_QUERY_WORD_LIMIT:
+                raise ValueError(f"""Query is too long. Please limit to
+                                {MAX_QUERY_WORD_LIMIT} words or less.""")
+
             copy_search_param = TYPESENSE_SEARCH_PARAMS.copy() # Normally copy is bad, but this should be fast
             copy_search_param["q"] = f"{query}"
             if channel_id:
@@ -155,5 +159,6 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
 
         return (jsonify(data), 200, API_RESPONSE_HEADERS)
 
-    except Exception as e:      # catch all other exceptions
-        return (jsonify({"error": str(e)}), 500, API_RESPONSE_HEADERS)
+    except Exception as e:      # DO NOT RETURN ERROR TO FRONTEND
+        debug(e)
+        return (jsonify({"error": "backend error occurred..."}), 500, API_RESPONSE_HEADERS)

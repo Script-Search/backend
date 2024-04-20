@@ -1,2 +1,7 @@
 cloudbuild.yaml
 cmd
+.pylintrc
+.mypy.ini
+test.py
+makefile
+

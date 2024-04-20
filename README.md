@@ -1,15 +1,35 @@
 # CSCE 482 ScriptSearch 🔍
 
-With the exponential growth of online video platforms like YouTube, the accessibility and consumption of video content have surged dramatically.
-YouTube has an average of over 500 hours of video content uploaded every minute (YouTube Statistics 2024).
-Amidst this vast ocean of video data, the challenge of efficiently retrieving specific information within video content has become increasingly pressing.
+For transcript-api, all the packages and libraries required can be found in `transcript_api/requirements.txt`.
+This code is meant to run on a google cloud function but can be emulated on a local machine via the following method.
+First create a python virtual environment within the transcript api folder using the following command:
+```bash
+python3 -m venv venv
+```
 
-Traditional methods of video search heavily rely on metadata and manually generated annotations.
-However, these approaches often fall short in accurately capturing the nuances and details present in video content.
-Keyword-based search, for instance, may overlook relevant information due to the limitations of metadata and the inability to account for context within the video.
+Then activate the virtual environment with the following command:
+```bash
+source ./venv/bin/activate
+```
 
-This highlights the importance of accurately searching transcripts, as transcripts provide a textual representation of the spoken content within videos.
-Unlike metadata, transcripts offer a more comprehensive and detailed overview of the video's content, including dialogue, narration, and other spoken elements.
-By leveraging transcript data, it becomes possible to enhance the search experience by enabling users to locate specific information with greater accuracy and efficiency.
+Then install all the dependencies within the virtual environment by running the following command:
+```
+./venv/bin/python3 -m pip install -r requirements.txt
+```
 
-In light of these challenges and the growing demand for efficient video content retrieval and analysis, there is a compelling need for innovative tools and systems that leverage transcript data to offer a more accurate and comprehensive search experience for users.
+Then start a local functions framework server by running the following command:
+```bash
+functions-framework --target=transcript_api --port 8080
+```
+
+Then to interact with the backend use several curl commands:
+```bash
+curl -X POST -H "Content-Type: application/json" -d "{"url": "https://www.youtube.com/watch?v=jNQXAC9IVRw"}" http://localhost:8080
+curl -X POST -H "Content-Type: application/json" -d "{"query": "dynamic programming"}" http://localhost:8080
+curl -X POST -H "Content-Type: application/json" -d "{"query": "dynamic programming", "channel_id": "UC_mYaQAE6-71rjSN6CeCA-g"}" http://localhost:8080
+curl -X POST -H "Content-Type: application/json" -d "{"query": "dynamic programming", "video_ids": '["0baCL9wwJTA","RRP_GFSGrDA","gOFrQs_13mQ","dXBapNjnab4","StSGz5dx52s"]'}" http://localhost:8080
+```
+
+These curls emulate the four possible interaction states: populating the database, searching with no filter, searching with a channel filter, and searching with a playlist filter.
+Feel free to change the various arguments to search a filter differently.
+
