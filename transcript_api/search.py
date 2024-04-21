@@ -147,16 +147,13 @@ def process_hit(hit: dict[str, int|list[dict[str, str|list[str]]]|dict[str, list
     return marked_snippets
 
 def sentence_search(transcript: list[str], new_transcript: list[str], query: str, query_pattern: re.Pattern) -> Generator[str|None, None, None]:
-    """Generates a sentence if query found (handles multi-word as well)
+    """Returns a sentence if query found (handles multi-word as well)
 
     Args:
         transcript: The transcript data
         new_transcript: The transcript data, cleaned and preprocessed
         query: The query
         query_pattern: The query as a regex pattern
-
-    Returns:
-        Generator[str|None, None, None]: sentence yielded to create a generator (saving memory)
     """
 
     words = query.split()
@@ -169,12 +166,12 @@ def sentence_search(transcript: list[str], new_transcript: list[str], query: str
         if len(words) == 1:
             yield transcript[i] if single_word(sentence, query_pattern) else None
         else:
-            num_sentences = multi_word(sentence, new_transcript[i + 1] if i != len(transcript) - 1 else None, query)
+            num_sentences = multi_word(sentence, new_transcript[i + 1] if i != len(transcript) - 1 else "", query)
             if num_sentences == 1:
                 yield transcript[i]
             elif num_sentences == 2:
                 skip_next = True
-                yield transcript[i] + " " + transcript[i+1]
+                yield f"{transcript[i]} {transcript[i+1]}"
             else:
                 yield None
         
@@ -190,21 +187,21 @@ def single_word(sentence: str, query_pattern: re.Pattern) -> re.Match[str]|None:
     """
     return re.search(query_pattern, sentence)
 
-def multi_word(sentence: str, next_sentence: str|None, query: str) -> str|int:
+def multi_word(sentence: str, next_sentence: str, query: str) -> str|int:
     """Finds the indexes of the query in the sentences
 
     Args:
         sentence (str): The current sentence to search for string in
-        next_sentence (str|None): The next sentence to append to current for searching
+        next_sentence (str): The next sentence to append to current for searching
         query (str): The query or the phrase to do sorta-exact matching on
 
     Returns:
-        str|None: The sentence if the query exists else None
+        str|int: The sentence if the query exists else 0
     """
     
     if query in sentence:
         return 1
-    if next_sentence and query in (sentence + " " + next_sentence):
+    if next_sentence and query in f"{sentence} {next_sentence}":
         return 2
     return 0
 
