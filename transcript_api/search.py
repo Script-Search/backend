@@ -64,7 +64,7 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
     responses = TYPESENSE_CLIENT.multi_search.perform(search_requests, query_params)
 
     cleaned_query = cleantext.sub('', search_requests['searches'][0]['q']).lower()
-    query_pattern = re.compile(r"\b" + re.escape(cleaned_query) + r"\b", re.IGNORECASE)
+    query_pattern = re.compile(r"\b" + re.escape(search_requests['searches'][0]['q']) + r"\b", re.IGNORECASE)
     result = []
     for response in responses["results"]:
         for hit in response["hits"]:
@@ -102,7 +102,7 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
     debug(f"Search took {end - start} seconds.")
 
     cleaned_query = cleantext.sub('', query_params["q"]).lower()
-    query_pattern = re.compile(r"\b" + re.escape(cleaned_query) + r"\b", re.IGNORECASE)
+    query_pattern = re.compile(r"\b" + re.escape(query_params["q"]) + r"\b", re.IGNORECASE)
     result = []
     for hit in response["hits"]:
         data = {
