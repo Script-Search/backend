@@ -15,7 +15,7 @@ Dependencies:
 from __future__ import annotations
 
 # Standard Library Imports
-import re
+from re import compile, escape, search, Match, Pattern, IGNORECASE
 from time import perf_counter
 from collections.abc import Generator
 
@@ -27,7 +27,7 @@ from helpers import debug
 from settings import TYPESENSE_HOST, TYPESENSE_API_KEY 
 
 TYPESENSE_CLIENT: Client = None
-cleantext = re.compile(r'[^a-z0-9 ]+')
+cleantext = compile(r'[^a-z0-9 ]+')
 
 def init_typesense() -> None:
     """
@@ -63,7 +63,7 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
     responses = TYPESENSE_CLIENT.multi_search.perform(search_requests, query_params)
 
     cleaned_query = cleantext.sub("", search_requests["searches"][0]["q"]).lower()
-    query_pattern = re.compile(r"\b" + re.escape(cleaned_query) + r"\b", re.IGNORECASE)
+    query_pattern = compile(r"\b" + escape(cleaned_query) + r"\b", IGNORECASE)
     result = []
     for response in responses["results"]:
         for hit in response["hits"]:
@@ -101,7 +101,7 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
     debug(f"Search took {end - start} seconds.")
 
     cleaned_query = cleantext.sub("", str(query_params["q"])).lower()
-    query_pattern = re.compile(r"\b" + re.escape(cleaned_query) + r"\b", re.IGNORECASE)
+    query_pattern = compile(r"\b" + escape(cleaned_query) + r"\b", IGNORECASE)
     result = []
     for hit in response["hits"]:
         data = {
@@ -119,7 +119,7 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
 
     return result
 
-def process_hit(hit: dict[str, int|list[dict[str, str|list[str]]]|dict[str, list[str]]], query_no_quotes: str, query_pattern: re.Pattern) -> list[dict[str, str]]:
+def process_hit(hit: dict[str, int|list[dict[str, str|list[str]]]|dict[str, list[str]]], query_no_quotes: str, query_pattern: Pattern) -> list[dict[str, str]]:
     """
     Processes the hit data.
 
@@ -146,7 +146,7 @@ def process_hit(hit: dict[str, int|list[dict[str, str|list[str]]]|dict[str, list
 
     return marked_snippets
 
-def sentence_search(transcript: list[str], new_transcript: list[str], query: str, query_pattern: re.Pattern) -> Generator[str|None, None, None]:
+def sentence_search(transcript: list[str], new_transcript: list[str], query: str, query_pattern: Pattern) -> Generator[str|None, None, None]:
     """Returns a sentence if query found (handles multi-word as well)
 
     Args:
@@ -175,7 +175,7 @@ def sentence_search(transcript: list[str], new_transcript: list[str], query: str
             else:
                 yield None
         
-def single_word(sentence: str, query_pattern: re.Pattern) -> re.Match[str]|None:
+def single_word(sentence: str, query_pattern: Pattern) -> Match[str]|None:
     """
     Finds the query within the sentence if it exists
     Args:
@@ -185,7 +185,7 @@ def single_word(sentence: str, query_pattern: re.Pattern) -> re.Match[str]|None:
     Returns:
         str|None: The sentence if it exists else None
     """
-    return re.search(query_pattern, sentence)
+    return search(query_pattern, sentence)
 
 def multi_word(sentence: str, next_sentence: str, query: str) -> str|int:
     """Finds the indexes of the query in the sentences
@@ -205,7 +205,7 @@ def multi_word(sentence: str, next_sentence: str, query: str) -> str|int:
         return 2
     return 0
 
-def mark_word(sentence: str, query_pattern: re.Pattern) -> str:
+def mark_word(sentence: str, query_pattern: Pattern) -> str:
     """
     Takes every instance of word or phrase within a sentence and wraps it in <mark> tags.
     This algorithm will also ignore cases.
