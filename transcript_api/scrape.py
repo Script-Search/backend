@@ -22,7 +22,7 @@ Constants:
 - URLType: Enum for URL types (VIDEO, PLAYLIST, CHANNEL).
 
 Imports:
-- Standard Library Imports: re, json, StringIO
+- Standard Library Imports: re, json
 - Third-Party Imports: yt_dlp, google.cloud.pubsub_v1, google.oauth2.service_account
 - File System Imports: settings, helpers
 """
@@ -33,7 +33,6 @@ from __future__ import annotations
 import re
 import json
 from enum import Enum
-from io import StringIO
 
 # Third-Party Imports
 from yt_dlp import YoutubeDL
@@ -68,7 +67,7 @@ def init_ydl_client():
     if not YDL_CLIENT:
         YDL_CLIENT = YoutubeDL(YDL_OPS)
 
-def process_url(url: str) -> dict[str, str|None]:
+def process_url(url: str) -> dict[str, str|list[str]|None]:
     """
     Takes a Universal Reference Link, 
     determines if the url is a channel or a playlist, 
@@ -85,7 +84,7 @@ def process_url(url: str) -> dict[str, str|None]:
     init_ydl_client()
     url_type = get_url_type(url)
 
-    data: dict[str, str|None] = {
+    data: dict[str, str|list[str]|None] = {
         "video_ids": None,
         "channel_id": None,
     }

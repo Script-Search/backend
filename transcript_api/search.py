@@ -15,10 +15,9 @@ Dependencies:
 from __future__ import annotations
 
 # Standard Library Imports
-import re
+from re import compile, escape, search, Match, Pattern, IGNORECASE
 from time import perf_counter
 from collections.abc import Generator
-from typing import Pattern
 
 # Third Party Imports
 from typesense import Client
@@ -28,7 +27,7 @@ from helpers import debug
 from settings import TYPESENSE_HOST, TYPESENSE_API_KEY 
 
 TYPESENSE_CLIENT: Client = None
-cleantext = re.compile(r'[^a-z0-9 ]+')
+cleantext = compile(r'[^a-z0-9 ]+')
 
 def init_typesense() -> None:
     """
@@ -48,11 +47,11 @@ def init_typesense() -> None:
         })
 
 def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_params: dict[str, object]) -> list[dict[str, str]]:
-    """
-    Searches for a query in the playlist data.
+    """Searches for a query in the playlist data.
 
     Args:
-        query_params (dict[str, str|int|bool]): The query params to use when searching.
+        search_requests (dict[str, list[dict[str, str]]]): The search requests to use when searching.
+        query_params (dict[str, object]): The query params to use when searching.
 
     Returns:
         list[dict[str, str]]: The search results.
@@ -63,8 +62,9 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
     init_typesense()
     responses = TYPESENSE_CLIENT.multi_search.perform(search_requests, query_params)
 
-    cleaned_query = cleantext.sub('', search_requests['searches'][0]['q']).lower()
-    query_pattern = re.compile(r"\b" + re.escape(search_requests['searches'][0]['q']) + r"\b", re.IGNORECASE)
+    cleaned_query = cleantext.sub("", search_requests["searches"][0]["q"]).lower()
+    query_pattern = compile(r"\b" + escape(cleaned_query) + r"\b", IGNORECASE)
+
     result = []
     for response in responses["results"]:
         for hit in response["hits"]:
@@ -101,8 +101,8 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
     end = perf_counter()
     debug(f"Search took {end - start} seconds.")
 
-    cleaned_query = cleantext.sub('', query_params["q"]).lower()
-    query_pattern = re.compile(r"\b" + re.escape(query_params["q"]) + r"\b", re.IGNORECASE)
+    cleaned_query = cleantext.sub("", str(query_params["q"])).lower()
+    query_pattern = compile(r"\b" + escape(cleaned_query) + r"\b", IGNORECASE)
     result = []
     for hit in response["hits"]:
         data = {
@@ -120,7 +120,7 @@ def search_typesense(query_params: dict[str, object]) -> list[dict[str, str | li
 
     return result
 
-def process_hit(hit: dict[str, int|list[dict[str, str|list]]|dict[str, list]], query_no_quotes: str, query_pattern: Pattern) -> list[dict[str, str|int]]:
+def process_hit(hit: dict[str, int|list[dict[str, str|list[str]]]|dict[str, list[str]]], query_no_quotes: str, query_pattern: Pattern) -> list[dict[str, str]]:
     """
     Processes the hit data.
 
@@ -132,12 +132,14 @@ def process_hit(hit: dict[str, int|list[dict[str, str|list]]|dict[str, list]], q
     Returns:
         list[dict[str, str|int]]: The processed hit data
     """
+    if not isinstance(hit["document"], dict):
+        return []
 
-    document = hit["document"]
+    document = dict(hit["document"])
     marked_snippets = []
 
     # Preprocess the transcript
-    new_transcript = [cleantext.sub('', sentence.lower()) for sentence in document["transcript"]]
+    new_transcript = [cleantext.sub("", sentence.lower()) for sentence in document["transcript"]]
     for index, sentence in enumerate(sentence_search(document["transcript"], new_transcript, query_no_quotes, query_pattern)):
         if not sentence: continue
 
@@ -145,18 +147,16 @@ def process_hit(hit: dict[str, int|list[dict[str, str|list]]|dict[str, list]], q
 
     return marked_snippets
 
-def sentence_search(transcript: list[dict[str, str | list[str]]], new_transcript: list[dict[str, str | list[str]]], query: str, query_pattern: Pattern) -> Generator[str]:
-    """
-    Returns a sentence if query found (handles multi-word as well)
+def sentence_search(transcript: list[str], new_transcript: list[str], query: str, query_pattern: Pattern) -> Generator[str|None, None, None]:
+    """Returns a sentence if query found (handles multi-word as well)
 
     Args:
-        transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data
-        transcript (list[dict[str, list[dict[str, list[str]|str]]]]): The transcript data, cleaned and preprocessed
-        query (str): The query
-
-    Returns:
-        Generator[str]: sentence yielded to create a generator (saving memory)
+        transcript: The transcript data
+        new_transcript: The transcript data, cleaned and preprocessed
+        query: The query
+        query_pattern: The query as a regex pattern
     """
+
     words = query.split()
     skip_next = False # If this is set to true then we know that previous snippet current sentence
     for i, sentence in enumerate(new_transcript):
@@ -167,16 +167,16 @@ def sentence_search(transcript: list[dict[str, str | list[str]]], new_transcript
         if len(words) == 1:
             yield transcript[i] if single_word(sentence, query_pattern) else None
         else:
-            num_sentences = multi_word(sentence, new_transcript[i+1] if i != len(transcript)-1 else None, query)
+            num_sentences = multi_word(sentence, new_transcript[i + 1] if i != len(transcript) - 1 else "", query)
             if num_sentences == 1:
                 yield transcript[i]
             elif num_sentences == 2:
                 skip_next = True
-                yield transcript[i] + " " + transcript[i+1]
+                yield f"{transcript[i]} {transcript[i+1]}"
             else:
                 yield None
         
-def single_word(sentence: str, query_pattern: Pattern) -> str|None:
+def single_word(sentence: str, query_pattern: Pattern) -> Match[str]|None:
     """
     Finds the query within the sentence if it exists
     Args:
@@ -186,23 +186,23 @@ def single_word(sentence: str, query_pattern: Pattern) -> str|None:
     Returns:
         str|None: The sentence if it exists else None
     """
-    return re.search(query_pattern, sentence)
+    return search(query_pattern, sentence)
 
-def multi_word(sentence: str, next_sentence: str|None, query: str) -> str|None:
-    """
-    Finds the indexes of the query in the sentences
+def multi_word(sentence: str, next_sentence: str, query: str) -> str|int:
+    """Finds the indexes of the query in the sentences
 
     Args:
         sentence (str): The current sentence to search for string in
-        next_sentence str|None: The next sentence to append to current for searching
+        next_sentence (str): The next sentence to append to current for searching
         query (str): The query or the phrase to do sorta-exact matching on
 
     Returns:
-        str|None: The sentence if the query exists else None
+        str|int: The sentence if the query exists else 0
     """
+    
     if query in sentence:
         return 1
-    elif next_sentence and query in (new_sentence := sentence + " " + next_sentence): # walrus operator
+    if next_sentence and query in f"{sentence} {next_sentence}":
         return 2
     return 0
 

@@ -34,8 +34,7 @@ def distribute(items: list, n: int) -> list[list]:
     Returns:
         list[list]: A list of lists containing the distributed items.
     """
-    sublist_length = len(items) // n
-    remainder = len(items) % n
+    sublist_length, remainder = divmod(len(items), n)
 
     sublists: list[list] = [[] for _ in range(n)]
     start = 0

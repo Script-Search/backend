@@ -160,5 +160,5 @@ def transcript_api(request: Request) -> tuple[Response, int, dict[str, str]]:
         return (jsonify(data), 200, API_RESPONSE_HEADERS)
 
     except Exception as e:      # DO NOT RETURN ERROR TO FRONTEND
-        debug(e)
+        debug(str(e))
         return (jsonify({"error": "backend error occurred..."}), 500, API_RESPONSE_HEADERS)
