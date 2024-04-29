@@ -64,6 +64,7 @@ def search_playlist(search_requests: dict[str, list[dict[str, str]]], query_para
 
     cleaned_query = cleantext.sub("", search_requests["searches"][0]["q"]).lower()
     query_pattern = compile(r"\b" + escape(cleaned_query) + r"\b", IGNORECASE)
+
     result = []
     for response in responses["results"]:
         for hit in response["hits"]:
