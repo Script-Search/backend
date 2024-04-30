@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
@@ -35,7 +36,7 @@ type TranscriptDoc struct {
 func init() {
 	FixDir()
 	InitConfig()
-	InitTypesense()
+	InitTypesense(&typesenseLazyLoaded)
 	functions.CloudEvent("UpsertToTypesense", upsertToTypesense)
 }
 
@@ -58,17 +59,32 @@ func upsertToTypesense(ctx context.Context, e event.Event) error {
 		documents[i] = doc
 	}
 
-	fmt.Printf("batch write size: %d\n", len(videoDocs))
-
 	t := time.Now()
+	resp, err := batchUpsert(ctx, documents)
+	log.Printf("bulk import took %s\n", time.Since(t))
+	if err != nil {
+		return err
+	}
+	
+	successes := 0
+	for _, r := range resp {
+		if r.Success {
+			successes++
+		}
+	}
+	log.Printf("batch write successes: %d/%d\n", successes, len(videoDocs))
+	return nil
+}
+
+func batchUpsert(ctx context.Context, documents []interface{}) ([]*api.ImportDocumentResponse, error) {
+	
 	params := &api.ImportDocumentsParams{
 		Action:    pointer.String("upsert"),
 		BatchSize: pointer.Int(len(documents)),
 	}
-	_, err := TypesenseClient.Collection(TypesenseCollectionName).Documents().Import(ctx, documents, params)
+	resp, err := TypesenseClient.Collection(TypesenseCollectionName).Documents().Import(ctx, documents, params)
 	if err != nil {
-		return fmt.Errorf("batch upsert error: %s", err.Error())
+		return nil, fmt.Errorf("batch upsert error: %s", err.Error())
 	}
-	fmt.Printf("bulk import took %s\n", time.Since(t))
-	return nil
+	return resp, nil
 }

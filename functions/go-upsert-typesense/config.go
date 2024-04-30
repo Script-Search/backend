@@ -1,24 +1,38 @@
 package function
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/typesense/typesense-go/typesense"
 )
 
-var FirestoreCollectionPath string
-var FirestoreCollectionFields []string
-var ShouldFlattenNestedDocuments bool
-var TypesenseHosts []string
-var TypesensePort int
-var TypesenseProtocol string
-var TypesenseCollectionName string
-var TypesenseAPIKey string
-var TypesenseBackfillTriggerDocumentInFirestore string = "typesense_sync/backfill"
-var TypesenseBackfillBatchSize int = 1000
+var (
+	TypesenseHosts             []string
+	TypesensePort              int
+	TypesenseProtocol          string
+	TypesenseCollectionName    string
+	TypesenseAPIKey            string
+	TypesenseBackfillBatchSize int = 1000
+
+	TypesenseClient     *typesense.Client
+	typesenseLazyLoaded sync.Once
+)
+
+func InitTypesense(tsLazyLoaded *sync.Once) {
+	tsLazyLoaded.Do(func() {
+		TypesenseClient = typesense.NewClient(
+			typesense.WithServer(fmt.Sprintf("https://%s:%d", TypesenseHosts[0], TypesensePort)),
+			typesense.WithAPIKey(TypesenseAPIKey),
+			typesense.WithConnectionTimeout(5*time.Second))
+	})
+}
 
 func InitConfig() {
 	err := godotenv.Load(".env")
@@ -26,9 +40,6 @@ func InitConfig() {
 		log.Fatalf("Error loading .env file: %s", err)
 	}
 
-	FirestoreCollectionPath = os.Getenv("FIRESTORE_COLLECTION_PATH")
-	FirestoreCollectionFields = filterAndTrim(strings.Split(os.Getenv("FIRESTORE_COLLECTION_FIELDS"), ","))
-	ShouldFlattenNestedDocuments = os.Getenv("FLATTEN_NESTED_DOCUMENTS") == "true"
 	TypesenseHosts = filterAndTrim(strings.Split(os.Getenv("TYPESENSE_HOSTS"), ","))
 	TypesensePort, _ = strconv.Atoi(os.Getenv("TYPESENSE_PORT"))
 	if TypesensePort == 0 {
