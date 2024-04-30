@@ -36,7 +36,7 @@ type TranscriptDoc struct {
 func init() {
 	FixDir()
 	InitConfig()
-	InitTypesense(&typesenseLazyLoaded, TypesenseClient)
+	InitTypesense(&typesenseLazyLoaded)
 	functions.CloudEvent("UpsertToTypesense", upsertToTypesense)
 }
 

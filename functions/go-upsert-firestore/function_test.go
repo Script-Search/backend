@@ -2,24 +2,25 @@ package function
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
-	"github.com/typesense/typesense-go/typesense/api"
-	"github.com/typesense/typesense-go/typesense/api/pointer"
 )
 
 func init() {
-	InitConfig()
-	InitTypesense(&typesenseLazyLoaded)
+	InitFirestore(context.Background())
+}
+
+func cleanup(ctx context.Context, videoDocs []TranscriptDoc) {
+	for _, doc := range videoDocs {
+		FirestoreClient.DeleteDocument(ctx, CreateDelRequest(doc))
+	}
 }
 
 func TestBatchUpsert(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	singleDoc := []interface{}{
-		TranscriptDoc{
-			Id:          "test2842",
+	singleDoc := []TranscriptDoc{
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid1",
@@ -31,9 +32,8 @@ func TestBatchUpsert(t *testing.T) {
 		},
 	}
 
-	multipleDocs := []interface{}{
-		TranscriptDoc{
-			Id:          "test257",
+	multipleDocs := []TranscriptDoc{
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid01",
@@ -43,8 +43,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test258",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid02",
@@ -54,8 +53,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test259",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid03",
@@ -65,8 +63,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test260",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid04",
@@ -76,8 +73,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test261",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid05",
@@ -87,8 +83,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test262",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid06",
@@ -98,8 +93,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test263",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid07",
@@ -109,8 +103,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test264",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid08",
@@ -120,8 +113,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test265",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid09",
@@ -131,8 +123,7 @@ func TestBatchUpsert(t *testing.T) {
 			Transcript:  []string{"hi", "bye"},
 			Timestamps:  []int{2, 5},
 		},
-		TranscriptDoc{
-			Id:          "test266",
+		{
 			ChannelId:   "testCh1",
 			ChannelName: "testCh",
 			VideoId:     "testVid10",
@@ -145,50 +136,18 @@ func TestBatchUpsert(t *testing.T) {
 	}
 
 	t.Run("Single", func(t *testing.T) {
-		resps, err := batchUpsert(ctx, singleDoc)
+		err := batchWriteVideoDocs(ctx, singleDoc)
 		if err != nil {
 			t.Error("error in batchUpsert:", err)
 		}
-		defer TypesenseClient.Collection(TypesenseCollectionName).Document("test2842").Delete(ctx)
-
-		// Check successes
-		successes := 0
-		for _, r := range resps {
-			if r.Success {
-				successes++
-			}
-		}
-
-		if successes != 1 {
-			t.Error("failed to batch upsert 1 doc")
-		}
+		cleanup(ctx, singleDoc)
 	})
 
 	t.Run("Multiple", func(t *testing.T) {
-		resps, err := batchUpsert(ctx, multipleDocs)
+		err := batchWriteVideoDocs(ctx, multipleDocs)
 		if err != nil {
 			t.Error("error in batchUpsert:", err)
 		}
-
-		fmt.Println("passed batch upsert")
-
-		// cleanup
-		filter := &api.DeleteDocumentsParams{
-			FilterBy:  pointer.String("channel_name:=testCh"),
-			BatchSize: pointer.Int(100),
-		}
-		TypesenseClient.Collection(TypesenseCollectionName).Documents().Delete(context.Background(), filter)
-
-		// Check successes
-		successes := 0
-		for _, r := range resps {
-			if r.Success {
-				successes++
-			}
-		}
-
-		if successes != 10 {
-			t.Error("failed to batch upsert 10 docs")
-		}
+		cleanup(ctx, multipleDocs)
 	})
 }

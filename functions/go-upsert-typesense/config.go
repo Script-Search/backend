@@ -25,9 +25,9 @@ var (
 	typesenseLazyLoaded sync.Once
 )
 
-func InitTypesense(tsLazyLoaded *sync.Once, tsClient *typesense.Client) {
+func InitTypesense(tsLazyLoaded *sync.Once) {
 	tsLazyLoaded.Do(func() {
-		tsClient = typesense.NewClient(
+		TypesenseClient = typesense.NewClient(
 			typesense.WithServer(fmt.Sprintf("https://%s:%d", TypesenseHosts[0], TypesensePort)),
 			typesense.WithAPIKey(TypesenseAPIKey),
 			typesense.WithConnectionTimeout(5*time.Second))
