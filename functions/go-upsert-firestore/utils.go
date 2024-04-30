@@ -24,6 +24,12 @@ func CreateBatchWriteRequest(videoDocs []TranscriptDoc) *firestorepb.BatchWriteR
 	}
 }
 
+func CreateDelRequest(doc TranscriptDoc) *firestorepb.DeleteDocumentRequest {
+	return &firestorepb.DeleteDocumentRequest{
+		Name: fmt.Sprintf("%s/documents/%s/%s", DatabaseUrl, documentPath, doc.VideoId),
+	}
+}
+
 func mapDocumentsToWrites(videoDocs []TranscriptDoc) []*firestorepb.Write {
 	writes := make([]*firestorepb.Write, len(videoDocs))
 	for i, videoDoc := range videoDocs {
