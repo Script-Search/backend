@@ -19,7 +19,7 @@ run: venv
 	functions-framework --target=transcript_api --port $(PORT)
 
 test:
-	$(PYTHON) test.py -v
+	$(PYTHON) -m unittest --verbose test.py
 
 coverage:
 	coverage run -m unittest test.py
