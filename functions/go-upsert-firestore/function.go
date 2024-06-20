@@ -13,6 +13,7 @@ import (
 
 func init() {
 	FixDir()
+	InitConfig()
 	functions.CloudEvent("UpsertToFirestore", upsertToFirestore)
 }
 

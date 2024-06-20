@@ -7,6 +7,7 @@ import (
 )
 
 func init() {
+	InitConfig()
 	InitFirestore(context.Background())
 }
 
@@ -16,7 +17,7 @@ func cleanup(ctx context.Context, videoDocs []TranscriptDoc) {
 	}
 }
 
-func TestBatchUpsert(t *testing.T) {
+func TestCleanBatchUpsert(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	singleDoc := []TranscriptDoc{
@@ -27,8 +28,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 	}
 
@@ -40,8 +39,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -50,8 +47,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -60,8 +55,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -70,8 +63,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -80,8 +71,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -90,8 +79,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -100,8 +87,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -110,8 +95,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -120,8 +103,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 		{
 			ChannelId:   "testCh1",
@@ -130,8 +111,6 @@ func TestBatchUpsert(t *testing.T) {
 			Duration:    10,
 			Title:       "testTitle",
 			UploadDate:  20240409,
-			Transcript:  []string{"hi", "bye"},
-			Timestamps:  []int{2, 5},
 		},
 	}
 
@@ -150,4 +129,9 @@ func TestBatchUpsert(t *testing.T) {
 		}
 		cleanup(ctx, multipleDocs)
 	})
+}
+
+// Datatypes with bytes that need to be converted into TranscriptDocs; TODO
+func TestMessyBatchUpsert(t *testing.T) {
+
 }
