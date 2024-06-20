@@ -11,7 +11,7 @@ steps:
       --runtime=go122 \
       --region=us-west2 \
       --gen2
-  secretEnv: ['CREDENTIALS_JSON']
+  secretEnv: ['CREDENTIALS_JSON', 'FIRESTORE_ENV_FILE']
   id: "deploy-cloudfunc-go-upsert-firestore"
   dir: functions/go-upsert-firestore
 options:
