@@ -5,6 +5,7 @@ steps:
   - '-c'
   - |
     echo "$$CREDENTIALS_JSON" > credentials_firebase.json &&
+    echo "$$FIRESTORE_ENV_FILE" > .env &&
     gcloud functions deploy go-upsert-firestore \
       --entry-point=UpsertToFirestore \
       --runtime=go122 \
@@ -19,3 +20,5 @@ availableSecrets:
   secretManager:
   - versionName: projects/$PROJECT_ID/secrets/credentials_json/versions/latest
     env: 'CREDENTIALS_JSON'
+  - versionName: projects/$PROJECT_ID/secrets/Firestore-Env-File/versions/latest
+    env: 'FIRESTORE_ENV_FILE'

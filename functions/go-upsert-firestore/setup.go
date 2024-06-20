@@ -8,17 +8,18 @@ import (
 	"sync"
 
 	firestore "cloud.google.com/go/firestore/apiv1"
+	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 )
 
 var (
-	projectId    = os.Getenv("PROJECT_ID")
-	databaseId   = os.Getenv("DATABASE_ID")
-	documentPath = os.Getenv("DOCUMENT_PATH")
+	projectId    string
+	databaseId   string
+	documentPath string
 
 	// Firestore Globals
 	FirestoreClient           *firestore.Client
-	DatabaseUrl               = fmt.Sprintf("projects/%s/databases/%s", projectId, databaseId)
+	DatabaseUrl               string
 	firestoreClientLazyLoaded sync.Once // Ensure client loaded just once
 )
 
@@ -31,6 +32,18 @@ func InitFirestore(ctx context.Context) {
 			log.Fatalf("firestore init error: %v", err)
 		}
 	})
+}
+
+func InitConfig() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatalf("Error loading .env file: %s", err)
+	}
+
+	projectId = os.Getenv("PROJECT_ID")
+	databaseId = os.Getenv("DATABASE_ID")
+	documentPath = os.Getenv("DOCUMENT_PATH")
+	DatabaseUrl = fmt.Sprintf("projects/%s/databases/%s", projectId, databaseId)
 }
 
 func FixDir() {
