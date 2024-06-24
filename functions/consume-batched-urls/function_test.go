@@ -247,3 +247,42 @@ func TestBatchedSend(t *testing.T) {
 
 	logError(errCh, t)
 }
+
+func TestSendTimedTextReq(t *testing.T) {
+	tests := []struct {
+		name       string
+		videoId    string
+		comparison []string
+	}{
+		{
+			name:       "English (auto-generated)",
+			videoId:    "_uQgGS_VIXM",
+			comparison: []string{"[Music]", "[Applause]", "[Music]", "hello and welcome guys to yet another"},
+		},
+		{
+			name:       "English (manual)",
+			videoId:    "Q-nWA0WeF98",
+			comparison: []string{"- [Narrator] This video was made possible by Incogni.", "Use code oversimplified in the link below", "for an exclusive 60% off an annual Incogni plan."},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpPlayerResponse, err := SendPlayerReq(tt.videoId, "web")
+			if err != nil {
+				t.Errorf("SendPlayerReq error: = %v", err)
+			}
+
+			subtitles, _, err := SendTimedTextReq(tmpPlayerResponse)
+			if err != nil {
+				t.Errorf("SendTimedTextReq error: = %v", err)
+			}
+
+			for i, subtitleTrue := range tt.comparison {
+				if subtitles[i] != subtitleTrue {
+					t.Fatalf("Unexpected subtitle comparison... \nExpected: %v\nActual: %v", tt.comparison, subtitles[:len(tt.comparison)])
+				}
+			}
+		})
+	}
+}

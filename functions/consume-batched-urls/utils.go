@@ -42,6 +42,9 @@ func IsAgeGated(tPR *TmpPlayerResponse) bool {
 }
 
 func ParseUploadDate(uploadDate string) int {
+	if uploadDate == "" {
+		return -1 // undefiend
+	}
 	parts := strings.Split(uploadDate, "-")
 	year := parts[0]
 	month := parts[1]
@@ -52,6 +55,9 @@ func ParseUploadDate(uploadDate string) int {
 }
 
 func convertTimestampToSeconds(timestamp string) int {
+	if timestamp == "" {
+		return -1 // undefined
+	}
 	parts := strings.Split(timestamp, ":")
 	hours, _ := strconv.Atoi(parts[0])
 	minutes, _ := strconv.Atoi(parts[1])

@@ -1,14 +1,56 @@
 package function
 
+import (
+	"encoding/xml"
+	"io"
+	"strings"
+)
+
 type Transcript struct {
 	Body struct {
 		Div struct {
-			TimeStamps []struct {
-				Begin string `xml:"begin,attr"`
-				Text  string `xml:",chardata"`
-			} `xml:"p"`
+			TimeStamps []TimeStamp `xml:"p"`
 		} `xml:"div"`
 	} `xml:"body"`
+}
+
+type TimeStamp struct {
+	Begin string `xml:"begin,attr"`
+	Text  string `xml:",chardata"`
+}
+
+// Custom unmarshaler for TimeStamp to handle <br> tags properly
+func (ts *TimeStamp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var result strings.Builder
+	for {
+		token, err := d.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		switch t := token.(type) {
+		case xml.CharData:
+			result.Write(t)
+		case xml.StartElement:
+			if t.Name.Local == "br" {
+				result.WriteRune(' ')
+				// Skip the <br> element itself
+				d.Skip()
+			}
+		}
+	}
+
+	ts.Text = result.String()
+	for _, attr := range start.Attr {
+		if attr.Name.Local == "begin" {
+			ts.Begin = attr.Value
+			break
+		}
+	}
+	return nil
 }
 
 type PlayerResponse struct {
